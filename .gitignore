@@ -36,6 +36,12 @@ yarn-error.log*
 # vercel
 .vercel
 
+# spec-kit agent directories (may contain credentials/auth tokens)
+.claude/
+
+# Cline CLI project config (may contain credentials in mcp.json)
+.cline/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

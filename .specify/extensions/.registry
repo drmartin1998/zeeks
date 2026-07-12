@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "extensions": {
+    "gherkin": {
+      "version": "1.0.0",
+      "source": "local",
+      "manifest_hash": "sha256:a74d95061a90ef54b69a17c044b14bea1e257f9c0f00af5a841de43b0777e649",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "claude": [
+          "speckit.gherkin.sync"
+        ]
+      },
+      "registered_skills": [],
+      "installed_at": "2026-07-12T14:56:27.291506+00:00"
+    }
+  }
+}

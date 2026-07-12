@@ -1,0 +1,52 @@
+schema_version: "1.0"
+
+extension:
+  id: gherkin
+  name: "Gherkin Feature Files"
+  version: "1.0.0"
+  description: >
+    Declarative Gherkin feature file generation and maintenance.
+    Automatically creates/updates .feature files from spec user stories
+    and acceptance criteria before implementation begins.
+  author: "zeeks-project"
+  license: MIT
+
+requires:
+  speckit_version: ">=0.2.0"
+
+provides:
+  commands:
+    - name: speckit.gherkin.sync
+      file: commands/speckit.gherkin.sync.md
+      description: >
+        Create or update a Gherkin .feature file from the feature
+        specification's user stories and acceptance criteria.
+
+  templates:
+    - name: "feature-template.md"
+      file: "templates/feature-template.md"
+      description: "Gherkin feature file template"
+
+hooks:
+  after_specify:
+    command: speckit.gherkin.sync
+    optional: false
+    description: >
+      Automatically create/update Gherkin .feature file after the
+      specification is written, so acceptance criteria are captured
+      in declarative form before any planning or implementation.
+
+  before_implement:
+    command: speckit.gherkin.sync
+    optional: false
+    description: >
+      Before executing any implementation tasks, sync the Gherkin
+      .feature file to ensure it reflects the latest spec. This
+      guarantees implementation always validates against current
+      acceptance criteria.
+
+tags:
+  - "gherkin"
+  - "bdd"
+  - "testing"
+  - "specification"

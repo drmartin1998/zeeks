@@ -1,0 +1,31 @@
+installed:
+- gherkin
+settings:
+  auto_execute_hooks: true
+hooks:
+  after_specify:
+  - extension: gherkin
+    command: speckit.gherkin.sync
+    enabled: true
+    optional: false
+    priority: 10
+    prompt: Execute speckit.gherkin.sync?
+    description: 'Automatically create/update Gherkin .feature file after the specification
+      is written, so acceptance criteria are captured in declarative form before any
+      planning or implementation.
+
+      '
+    condition: null
+  before_implement:
+  - extension: gherkin
+    command: speckit.gherkin.sync
+    enabled: true
+    optional: false
+    priority: 10
+    prompt: Execute speckit.gherkin.sync?
+    description: 'Before executing any implementation tasks, sync the Gherkin .feature
+      file to ensure it reflects the latest spec. This guarantees implementation always
+      validates against current acceptance criteria.
+
+      '
+    condition: null
