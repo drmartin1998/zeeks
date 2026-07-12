@@ -7,7 +7,6 @@ const FEATURED_GAMES = [
     title: "Leviathan Starter Set",
     category: "Warhammer 40K",
     price: 210.0,
-    players: "2",
     image: "/games/leviathan.png",
     gradient: "from-slate-700 to-slate-900",
   },
@@ -15,7 +14,6 @@ const FEATURED_GAMES = [
     title: "Kill Team: Hivestorm",
     category: "Warhammer 40K",
     price: 160.0,
-    players: "2",
     image: "/games/hivestorm.png",
     gradient: "from-emerald-700 to-emerald-900",
   },
@@ -23,7 +21,6 @@ const FEATURED_GAMES = [
     title: "MTG Foundations Starter",
     category: "Collectible Card Game",
     price: 59.99,
-    players: "2-4",
     image: "/games/foundations.png",
     gradient: "from-amber-600 to-red-800",
   },
@@ -31,7 +28,6 @@ const FEATURED_GAMES = [
     title: "Pokémon 151 Elite Trainer",
     category: "Collectible Card Game",
     price: 49.99,
-    players: "2",
     image: "/games/pokemon.jpg",
     gradient: "from-blue-600 to-indigo-800",
   },
@@ -68,7 +64,6 @@ export function FeaturedGames() {
               title={game.title}
               category={game.category}
               price={game.price}
-              players={game.players}
               image={game.image}
               gradient={game.gradient}
             />

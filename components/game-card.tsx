@@ -5,7 +5,6 @@ interface GameCardProps {
   title: string;
   category: string;
   price: number;
-  players: string;
   image?: string;
   gradient?: string;
 }
@@ -14,7 +13,6 @@ export function GameCard({
   title,
   category,
   price = 185.0,
-  players,
   image,
   gradient = "from-zeeks-purple to-zeeks-purple-dark",
 }: GameCardProps) {
@@ -54,9 +52,6 @@ export function GameCard({
             ${price.toFixed(2)}
           </span>
         </div>
-
-        {/* Players */}
-        <span className="text-sm text-text-muted">{players} players</span>
 
         {/* Add to Cart button */}
         <Button variant="primary" size="lg" className="w-full">
