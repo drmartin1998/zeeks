@@ -125,4 +125,5 @@ git push -u origin feat/new-feature
 - `git commit --no-verify` unless user specifically asks to skip hooks
 - `git add .` on large repos; prefer `git add -A` which respects `.gitignore`
 - Amending commits that have already been pushed without warning the user
+- Committing directly to `main` — always use feature branches (see constitution § Branching Strategy)
 

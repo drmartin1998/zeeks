@@ -1,6 +1,6 @@
 <!--
   === SYNC IMPACT REPORT ===
-  Version change: 0.0.0 (template) → 1.0.0 (initial ratification)
+  Version change: 1.0.0 → 1.1.0 (added Branching Strategy gate)
   Principles:
     - Created: I. Server Components First
     - Created: II. API Route Security (Square API)
@@ -12,10 +12,12 @@
   Sections:
     - Created: Technology Stack
     - Created: Development Workflow & Quality Gates
+    - Added: Branching Strategy (MANDATORY) gate under Development Workflow
   Templates requiring updates:
     - .specify/templates/plan-template.md    ⚠ pending
     - .specify/templates/spec-template.md     ⚠ pending
     - .specify/templates/tasks-template.md    ⚠ pending
+    - git/SKILL.md                           ✅ aligned (branch safety rules)
   Follow-up TODOs:
     - None. All placeholders filled.
 -->
@@ -183,6 +185,18 @@ early failure with actionable messages rather than cryptic Square API errors.
 - **Bundle Size**: No page route bundle MUST exceed 150 KB (uncompressed)
   for initial JS. Use `@next/bundle-analyzer` to verify.
 
+### Branching Strategy (MANDATORY)
+
+- **NEVER commit directly to `main`**. All work MUST happen on feature branches.
+- Before starting ANY work, create a feature branch via
+  `/speckit-specify` which auto-generates the branch from the feature spec.
+- Branch naming MUST follow the spec-kit convention: `<###>-<short-name>`
+  (e.g., `001-checkout-flow`, `042-product-search`).
+- Feature branches MUST be created from an up-to-date `main`. Run
+  `git pull --rebase origin main` before branching.
+- Merges to `main` MUST go through a Pull Request with at least one review.
+- After merge, the feature branch MUST be deleted.
+
 ### Vercel Deployment Gates
 
 - **Preview Deployments**: Every PR MUST create a Vercel Preview Deployment.
@@ -214,4 +228,4 @@ All code reviews MUST verify compliance with the Core Principles. Any
 principle violation MUST be explicitly justified and documented in the
 PR description.
 
-**Version**: 1.0.0 | **Ratified**: 2026-08-01 | **Last Amended**: 2026-08-01
+**Version**: 1.1.0 | **Ratified**: 2026-08-01 | **Last Amended**: 2026-08-01
