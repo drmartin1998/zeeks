@@ -3,16 +3,9 @@ import { z } from "zod";
 const envSchema = z.object({
   SQUARE_ACCESS_TOKEN: z
     .string()
-    .min(1, "SQUARE_ACCESS_TOKEN is required")
-    .startsWith(
-      "EAAA",
-      "SQUARE_ACCESS_TOKEN should be a sandbox access token (starts with EAAA)"
-    ),
+    .min(1, "SQUARE_ACCESS_TOKEN is required"),
   SQUARE_LOCATION_ID: z.string().min(1, "SQUARE_LOCATION_ID is required"),
   SQUARE_APPLICATION_ID: z.string().min(1, "SQUARE_APPLICATION_ID is required"),
-  SQUARE_ENVIRONMENT: z
-    .enum(["sandbox", "production"])
-    .default("sandbox"),
 });
 
 function validateEnv() {
@@ -20,7 +13,6 @@ function validateEnv() {
     SQUARE_ACCESS_TOKEN: process.env.square_access_token,
     SQUARE_LOCATION_ID: process.env.square_location_id,
     SQUARE_APPLICATION_ID: process.env.square_application_id,
-    SQUARE_ENVIRONMENT: process.env.SQUARE_ENVIRONMENT,
   });
 
   if (!parsed.success) {

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import { ProductListingPage } from "@/components/product-listing";
 import { getNavCategories } from "@/lib/data/categories";
 import {
@@ -63,16 +64,18 @@ export default async function CategoryPage({ params }: PageProps) {
   const products = (squareProducts ?? []).map(toProduct);
 
   return (
-    <ProductListingPage
-      category={{
-        slug: cat.slug,
-        name: cat.title,
-        description: `Browse our full collection of ${cat.title.toLowerCase()} products.`,
-        backgroundImage: cat.image,
-      }}
-      navCategories={navCategories}
-      products={products}
-      subCategories={subCategories}
-    />
+    <Suspense fallback={<div className="py-20 text-center text-text-muted">Loading...</div>}>
+      <ProductListingPage
+        category={{
+          slug: cat.slug,
+          name: cat.title,
+          description: `Browse our full collection of ${cat.title.toLowerCase()} products.`,
+          backgroundImage: cat.image,
+        }}
+        navCategories={navCategories}
+        products={products}
+        subCategories={subCategories}
+      />
+    </Suspense>
   );
 }

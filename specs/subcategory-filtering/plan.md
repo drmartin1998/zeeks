@@ -6,7 +6,7 @@
 
 ## Summary
 
-Enable category listing pages (`/categories/[slug]` and `/shop/[category]`) to display all products from a top-level Square category AND its subcategories, with client-side filter chips to narrow by subcategory. Also enforce a "no mock data in production" rule — all data comes from Square API with graceful error states, never hardcoded fallbacks.
+Enable category listing pages (`/categories/[slug]` and `/shop/[category]`) to display all products from a top-level Square category AND its subcategories, with client-side filter chips to narrow by subcategory. Filter state persists in the URL (`?sub=<slug>`) for shareability. Includes pagination (12/page) on both routes, contextual zero-results states, and enforcement of the "no mock data in production" rule.
 
 ## Technical Context
 
@@ -26,7 +26,7 @@ Enable category listing pages (`/categories/[slug]` and `/shop/[category]`) to d
 
 **Constraints**: All data MUST come from Square; zero mock data imports in production code; server components first
 
-**Scale/Scope**: 2 page routes, ~5 components, 1 new data module function
+**Scale/Scope**: 2 page routes, ~5 components, 15 functional requirements (11 implemented, 4 pending), 11 Gherkin scenarios
 
 ## Constitution Check
 
@@ -48,12 +48,15 @@ Enable category listing pages (`/categories/[slug]` and `/shop/[category]`) to d
 
 ```text
 specs/subcategory-filtering/
-├── spec.md                                    # Feature specification
+├── spec.md                                    # Feature specification (15 FRs, 3 US, 5 clarifications)
 ├── plan.md                                    # This file
+├── research.md                                # Phase 0: 9 research decisions
+├── data-model.md                              # Phase 1: entities, pagination model, URL state model
+├── quickstart.md                              # Phase 1: 8 validation scenarios
 ├── features/
-│   └── subcategory-filtering.feature          # Gherkin scenarios
+│   └── subcategory-filtering.feature          # Gherkin scenarios (11 scenarios)
 └── checklists/
-    └── requirements.md                        # Quality checklist
+    └── requirements.md                        # Quality checklist (40 items)
 ```
 
 ### Source Code (repository root) — files touched
@@ -72,6 +75,43 @@ app/
 │   └── page.tsx                  # Parallel fetch: category + products + subcategories
 │                                # Uses CategoryProductGrid client component
 ├── shop/[category]/
+
+## Phase 0: Research
+
+See [research.md](./research.md) for detailed findings. Key decisions:
+
+| Topic | Decision | Rationale |
+|---|---|---|
+| API Pagination | Cursor-based loop with `limit: 1000` | Square defaults to 100/page; categories with >100 items were silently truncated |
+| Category fetching | Single `fetchAllCategories()` helper | Avoids 4 separate API calls per page request |
+| Filtering | Client-side by `subCategorySlug` | Instant toggles, no extra network |
+| Mock data | Removed from all production paths | Rule: no mock data in production |
+| Subcategory annotation | `Map<id, SubCategory>` O(1) lookup | Efficient product annotation |
+| URL filter state | `?sub=<slug>` search param via useSearchParams | Shareable, bookmarkable, back/forward support |
+| Zero-results UI | Contextual message + "Show all" button | Clear action path, not confusing generic empty |
+| UI Pagination | 12/page on `/categories/[slug]` matching `/shop/[category]` | Performance for 500+ product categories |
+| Default sort | "Featured" (Square ordering), no dropdown | Simplicity; `/shop/[category]` has sort if needed |
+
+## Phase 1: Design & Contracts
+
+| Artifact | Path | Description |
+|---|---|---|
+| Data Model | [data-model.md](./data-model.md) | Entity definitions, relationships, data flow, pagination model |
+| Quickstart | [quickstart.md](./quickstart.md) | Validation scenarios and quality gate commands |
+| Contracts | N/A | No external API contracts (internal application) |
+
+## Post-Phase-1 Constitution Re-Check
+
+| Principle | Status | Notes |
+|---|---|---|
+| I. Server Components First | ✅ PASS | Server components fetch data; client components only for interactivity |
+| II. API Route Security | ✅ PASS | Square SDK used server-side; no token exposure |
+| III. Type-Safe Data Flow | ✅ PASS | `SquareSubCategory`, updated `SquareProduct` typed in catalog.ts |
+| IV. Gherkin-First Testing | ⚠️ PARTIAL | `.feature` file exists; tests pending (E2E + integration) |
+| V. Performance & Caching | ✅ PASS | Pagination fixes the 100-item truncation bug |
+| VI. Testing Trophy | ⚠️ PARTIAL | Unit tests exist; integration/E2E for subcategory flow pending |
+| VII. No Mock Data Fallback | ✅ PASS | All fallbacks removed from production paths |
+
 │   └── page.tsx                  # Parallel fetch: nav + products + subcategories
 │                                # Passes subCategories to ProductListingPage
 └── page.tsx                      # Async Homepage — fetches Square categories/featured games

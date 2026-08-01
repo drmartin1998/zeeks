@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { Suspense } from "react";
 import { ArrowLeft } from "lucide-react";
 import {
   getSquareCategoryBySlug,
@@ -61,10 +62,12 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
         {/* Products grid with subcategory filter */}
         <section className="w-full bg-white">
           <div className="mx-auto flex max-w-[1440px] flex-col gap-8 px-4 py-12 md:px-8 lg:px-20 lg:py-16">
-            <CategoryProductGrid
-              products={safeProducts}
-              subCategories={subCategories}
-            />
+            <Suspense fallback={<div className="py-20 text-center text-text-muted">Loading products...</div>}>
+              <CategoryProductGrid
+                products={safeProducts}
+                subCategories={subCategories}
+              />
+            </Suspense>
           </div>
         </section>
       </main>

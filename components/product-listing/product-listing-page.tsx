@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { NavBar } from "@/components/nav-bar";
 import { Footer } from "@/components/footer";
 import { CategoryHero } from "@/components/product-listing/category-hero";
@@ -28,7 +29,16 @@ export function ProductListingPage({
   products: allProducts,
   subCategories,
 }: ProductListingPageProps) {
-  const [activeFilters, setActiveFilters] = useState<string[]>([]);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  // Read initial filter from URL
+  const initialSub = searchParams.get("sub");
+  const [activeFilters, setActiveFilters] = useState<string[]>(
+    initialSub && subCategories?.some((s) => s.slug === initialSub)
+      ? [initialSub]
+      : []
+  );
   const [currentSort, setCurrentSort] = useState("Featured");
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -66,12 +76,20 @@ export function ProductListingPage({
   const handleFilterToggle = (filter: string) => {
     if (filter === "__all__") {
       setActiveFilters([]);
+      router.push("?", { scroll: false });
     } else {
-      setActiveFilters((prev) =>
-        prev.includes(filter)
+      setActiveFilters((prev) => {
+        const next = prev.includes(filter)
           ? prev.filter((f) => f !== filter)
-          : [...prev, filter]
-      );
+          : [...prev, filter];
+        // Update URL with comma-separated active filters
+        if (next.length > 0) {
+          router.push(`?sub=${next.join(",")}`, { scroll: false });
+        } else {
+          router.push("?", { scroll: false });
+        }
+        return next;
+      });
     }
     setCurrentPage(1);
   };

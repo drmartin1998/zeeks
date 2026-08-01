@@ -1,4 +1,4 @@
-import { catalogApi } from "@/lib/square/client";
+import { catalogApi, locationId } from "@/lib/square/client";
 import {
   type SquareCatalogCategory,
   isTopLevelCategory,
@@ -209,15 +209,31 @@ export async function getSquareProductsByCategorySlug(
     // Collect all category IDs to search: parent + all subcategories
     const allCategoryIds = [parentId, ...subCategoryMap.keys()];
 
-    // ── Step 2: search items by all those category IDs ───────────────────
-    const itemResponse = await catalogApi.searchItems({
-      categoryIds: allCategoryIds,
-    });
+    // ── Step 2: search items with cursor-based pagination ──────────────
+    const allItems: CatalogObject[] = [];
+    let cursor: string | undefined;
 
-    const items =
-      (itemResponse as { items?: CatalogObject[] }).items ?? [];
+    do {
+      const itemResponse = await catalogApi.searchItems({
+        categoryIds: allCategoryIds,
+        enabledLocationIds: [locationId],
+        cursor,
+        limit: 1000,
+      });
 
-    return items
+      const response = itemResponse as {
+        items?: CatalogObject[];
+        cursor?: string;
+      };
+
+      if (response.items) {
+        allItems.push(...response.items);
+      }
+
+      cursor = response.cursor;
+    } while (cursor);
+
+    return allItems
       .filter(
         (item): item is CatalogObject.Item =>
           item.type === "ITEM" && !!item.itemData

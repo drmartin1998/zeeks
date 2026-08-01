@@ -77,3 +77,18 @@ Feature: Subcategory Browsing & Filtering
     When the homepage loads
     Then the "Popular Categories" section is not displayed
     And the "New Arrivals" section is not displayed
+
+  @US2 @P2
+  Scenario: Filter state persists in URL for shareability
+    Given the user is viewing "/categories/board-games"
+    When the user clicks the "Strategy" chip
+    Then the URL updates to contain "?sub=strategy"
+    And refreshing the page preserves the "Strategy" filter active
+
+  @US2 @P2
+  Scenario: Filter with zero results shows contextual empty state
+    Given the user is viewing "/categories/board-games"
+    And a subcategory "Strategy" exists with zero tagged products
+    When the user clicks the "Strategy" chip
+    Then a message "No products in this subcategory" is displayed
+    And a "Show all" button is visible that clears the filter

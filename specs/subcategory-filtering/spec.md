@@ -8,6 +8,16 @@
 
 **Input**: User description: "When viewing a top category I want to see all products in that category and any subcategories with the ability to filter by subcategories."
 
+## Clarifications
+
+### Session 2026-08-01
+
+- Q: Should the active subcategory filter be reflected in the URL for shareability/bookmarking? → A: URL search params (`?sub=strategy`) — shareable, bookmarkable, supports back/forward
+- Q: Should subcategory filter chips display product counts? → A: No counts — simpler UI, less visual noise, chips are just label buttons
+- Q: What should display when a subcategory filter yields zero products? → A: "No products in this subcategory" message with a "Show all" button to clear the filter and return to full view
+- Q: Should `/categories/[slug]` add pagination given it now fetches all items from Square? → A: Yes — pagination matching `/shop/[category]` style (page numbers, 12 items per page)
+- Q: What default sort order should `/categories/[slug]` use? → A: "Featured" — Square's default catalog ordering, merchant-controlled, no sort dropdown needed on this route
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - View All Products Including Subcategories (Priority: P1)
@@ -40,6 +50,8 @@ As a customer viewing a category page, I want to see subcategory filter chips (l
 2. **Given** "Strategy" chip is clicked, **When** the chip becomes active, **Then** only Strategy products are shown and "All" deselects.
 3. **Given** the user has filtered to "Strategy", **When** "All" is clicked, **Then** all products from all subcategories and parent are shown again.
 4. **Given** a category has NO subcategories, **When** the page loads, **Then** no subcategory filter chips are displayed.
+5. **Given** the user has filtered to "Strategy", **When** the URL is refreshed or shared, **Then** the page loads with "Strategy" chip active and only Strategy products shown.
+6. **Given** a subcategory filter returns zero products, **When** the filter is applied, **Then** an empty state shows "No products in this subcategory" with a "Show all" button that clears the filter.
 
 ---
 
@@ -64,6 +76,8 @@ As a platform operator, when the Square API is unreachable, I want the applicati
 - What happens when a category slug in the URL does not match any Square category? → 404 via `notFound()`
 - What happens when Square API returns a category but searchItems returns zero results? → Empty state with message
 - What happens when a product belongs to multiple subcategories? → Product appears under all matching filter chips
+- What happens when a category has more than 100 items (Square's default page size)? → Cursor-based pagination fetches all pages until no cursor remains
+- What happens when a filtered view has >12 products? → Pagination splits into pages of 12; page controls appear below the grid
 - What about mobile viewport? → Filter chips wrap horizontally in a scrollable row
 
 ## Requirements *(mandatory)*
@@ -81,6 +95,14 @@ As a platform operator, when the Square API is unreachable, I want the applicati
 - **FR-009**: NavBar MUST require categories as explicit prop; no mock data import.
 - **FR-010**: Homepage Featured sections MUST hide when Square data is unavailable.
 - **FR-011**: Both `/categories/[slug]` and `/shop/[category]` routes MUST support subcategory filtering.
+- **FR-012**: Active subcategory filter MUST be reflected in the URL as a `?sub=<slug>` search param, enabling shareable/bookmarkable filtered views.
+- **FR-013**: When a subcategory filter yields zero products, the UI MUST show a contextual empty state ("No products in this subcategory") with a "Show all" button to clear the filter.
+- **FR-014**: `/categories/[slug]` route MUST implement pagination matching `/shop/[category]` style (12 items per page, page number navigation), applicable after subcategory filtering.
+- **FR-015**: `/categories/[slug]` default product sort order MUST be "Featured" (Square's default catalog ordering); no sort dropdown required on this route.
+
+### Out of Scope (v1)
+
+- Subcategory filter chips do NOT display product counts (deferred to potential v2)
 
 ### Key Entities
 

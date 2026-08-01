@@ -1,14 +1,9 @@
 import { SquareClient, SquareEnvironment } from "square";
 import { env } from "@/lib/env";
 
-const squareEnvironment =
-  env.SQUARE_ENVIRONMENT === "production"
-    ? SquareEnvironment.Production
-    : SquareEnvironment.Sandbox;
-
 export const squareClient = new SquareClient({
   token: env.SQUARE_ACCESS_TOKEN,
-  environment: squareEnvironment,
+  environment: SquareEnvironment.Production,
 });
 
 export const catalogApi = squareClient.catalog;
