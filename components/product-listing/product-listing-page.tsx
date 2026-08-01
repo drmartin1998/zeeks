@@ -7,19 +7,20 @@ import { CategoryHero } from "@/components/product-listing/category-hero";
 import { FilterBar } from "@/components/product-listing/filter-bar";
 import { ProductGrid } from "@/components/product-listing/product-grid";
 import { Pagination } from "@/components/product-listing/pagination";
+import type { NavCategory } from "@/lib/square/types";
 import {
-  type Product,
   type CategoryData,
   getProductsByCategory,
 } from "@/lib/data/products";
 
 interface ProductListingPageProps {
   category: CategoryData;
+  navCategories?: NavCategory[];
 }
 
 const ITEMS_PER_PAGE = 12;
 
-export function ProductListingPage({ category }: ProductListingPageProps) {
+export function ProductListingPage({ category, navCategories }: ProductListingPageProps) {
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
   const [currentSort, setCurrentSort] = useState("Featured");
   const [currentPage, setCurrentPage] = useState(1);
@@ -73,7 +74,7 @@ export function ProductListingPage({ category }: ProductListingPageProps) {
 
   return (
     <div className="flex min-h-screen flex-col overflow-x-hidden">
-      <NavBar />
+      <NavBar categories={navCategories} />
       <main className="flex-1 overflow-x-hidden">
         <CategoryHero
           categoryName={category.name}

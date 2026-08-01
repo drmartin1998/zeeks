@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ProductListingPage } from "@/components/product-listing";
 import { CATEGORIES } from "@/lib/data/products";
+import { getNavCategories } from "@/lib/data/categories";
 
 interface PageProps {
   params: Promise<{ category: string }>;
@@ -37,5 +38,7 @@ export default async function CategoryPage({ params }: PageProps) {
     notFound();
   }
 
-  return <ProductListingPage category={cat!} />;
+  const navCategories = await getNavCategories();
+
+  return <ProductListingPage category={cat!} navCategories={navCategories} />;
 }
