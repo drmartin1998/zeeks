@@ -4,16 +4,15 @@ import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Search, ShoppingBag, User } from "lucide-react";
-import { NAV_CATEGORIES } from "@/lib/data";
 import type { NavCategory } from "@/lib/square/types";
 
 interface NavBarProps {
-  /** Categories pulled from Square API. Falls back to hardcoded data when omitted. */
-  categories?: NavCategory[];
+  /** Categories pulled from Square API. Always required — no mock data fallback. */
+  categories: NavCategory[];
 }
 
 export function NavBar({ categories }: NavBarProps) {
-  const navItems = categories && categories.length > 0 ? categories : NAV_CATEGORIES;
+  const navItems = categories;
 
   return (
     <header

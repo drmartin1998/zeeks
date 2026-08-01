@@ -1,9 +1,19 @@
 import { GameCard } from "@/components/game-card";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { FEATURED_GAMES } from "@/lib/data";
 
-export function FeaturedGames() {
+interface FeaturedGamesProps {
+  games: {
+    title: string;
+    category: string;
+    categorySlug: string;
+    price: number;
+    image: string;
+    gradient: string;
+  }[];
+}
+
+export function FeaturedGames({ games }: FeaturedGamesProps) {
   return (
     <section id="new-arrivals" className="w-full bg-white">
       <div className="mx-auto flex max-w-[1440px] flex-col gap-8 px-4 py-12 md:gap-12 md:px-8 lg:px-20 lg:py-20">
@@ -27,19 +37,21 @@ export function FeaturedGames() {
         </div>
 
         {/* Games grid */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
-          {FEATURED_GAMES.map((game) => (
-            <GameCard
-              key={game.title}
-              title={game.title}
-              category={game.category}
-              categorySlug={game.categorySlug}
-              price={game.price}
-              image={game.image}
-              gradient={game.gradient}
-            />
-          ))}
-        </div>
+        {games.length > 0 && (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
+            {games.map((game) => (
+              <GameCard
+                key={game.title}
+                title={game.title}
+                category={game.category}
+                categorySlug={game.categorySlug}
+                price={game.price}
+                image={game.image}
+                gradient={game.gradient}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );

@@ -7,9 +7,8 @@ import {
 import { catalogApi } from "@/lib/square/client";
 
 /**
- * Hardcoded categories that are NOT pulled from Square.
- * "About Us" and "Locations" are informational pages.
- * "Sale" is a marketing promo category.
+ * Static navigation links that are informational pages — NOT Square-managed
+ * catalog categories. These are always shown alongside Square categories.
  */
 const STATIC_NAV_CATEGORIES: NavCategory[] = [
   { label: "About Us", href: "/about" },
@@ -18,25 +17,13 @@ const STATIC_NAV_CATEGORIES: NavCategory[] = [
 ];
 
 /**
- * Fallback categories used when Square API is unreachable.
- * Mirrors the original hardcoded NAV_CATEGORIES from lib/data.ts.
- */
-const FALLBACK_NAV_CATEGORIES: NavCategory[] = [
-  { label: "Miniatures", href: "/categories/miniatures" },
-  { label: "Board Games", href: "/categories/board-games" },
-  { label: "Card Games", href: "/categories/card-games" },
-  { label: "Supplies", href: "/categories/supplies" },
-  ...STATIC_NAV_CATEGORIES,
-];
-
-/**
  * Fetches navigation categories from the Square Catalog API.
  *
  * Returns Square-managed categories with "About Us", "Locations",
- * and "Sale" appended at the end. Falls back to static data when
- * the Square API is unreachable.
+ * and "Sale" appended at the end.
  *
- * Uses `fetch` with ISR revalidation to cache catalog data.
+ * On Square API failure, returns ONLY the static nav items — never
+ * falls back to mock data for Square-managed categories.
  */
 export async function getNavCategories(): Promise<NavCategory[]> {
   try {
@@ -58,9 +45,9 @@ export async function getNavCategories(): Promise<NavCategory[]> {
     return [...squareCategories, ...STATIC_NAV_CATEGORIES];
   } catch (error) {
     console.error(
-      "Failed to fetch categories from Square, using fallback:",
+      "Failed to fetch categories from Square:",
       error instanceof Error ? error.message : error
     );
-    return FALLBACK_NAV_CATEGORIES;
+    return STATIC_NAV_CATEGORIES;
   }
 }

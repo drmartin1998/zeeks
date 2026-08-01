@@ -30,18 +30,6 @@ describe("NavBar", () => {
     ).toHaveAttribute("href", "/categories/miniatures");
   });
 
-  it("should fall back to hardcoded NAV_CATEGORIES when no prop given", () => {
-    render(<NavBar />);
-
-    // Verify fallback categories are rendered
-    expect(
-      screen.getByRole("link", { name: "Miniatures" })
-    ).toHaveAttribute("href", "/categories/miniatures");
-    expect(
-      screen.getByRole("link", { name: "Board Games" })
-    ).toHaveAttribute("href", "/categories/board-games");
-  });
-
   it("should render About Us and Locations links", () => {
     render(<NavBar categories={mockSquareCategories} />);
 
@@ -83,12 +71,12 @@ describe("NavBar", () => {
     expect(homeLink).toHaveAttribute("href", "/");
   });
 
-  it("should handle empty categories array gracefully", () => {
+  it("should render empty category bar when given empty array", () => {
     render(<NavBar categories={[]} />);
 
-    // When empty array, falls back to NAV_CATEGORIES
+    // Category bar exists but has no category links (only logo, search, cart, user)
     expect(
-      screen.getByRole("link", { name: "Miniatures" })
-    ).toBeInTheDocument();
+      screen.queryByRole("link", { name: "Miniatures" })
+    ).not.toBeInTheDocument();
   });
 });

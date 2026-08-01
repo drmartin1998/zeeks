@@ -10,6 +10,8 @@ interface FilterBarProps {
   currentSort: string;
   onFilterToggle: (filter: string) => void;
   onSortChange: (sort: string) => void;
+  /** When provided, renders subcategory filter chips instead of the default hardcoded options */
+  subCategories?: { slug: string; name: string }[];
 }
 
 const FILTER_OPTIONS = ["Category", "Price Range", "Player Count", "Age Range"];
@@ -22,6 +24,7 @@ export function FilterBar({
   currentSort,
   onFilterToggle,
   onSortChange,
+  subCategories,
 }: FilterBarProps) {
   return (
     <div className="flex flex-col gap-3 bg-surface-secondary px-5 py-4 lg:flex-row lg:items-center lg:justify-between lg:px-20">
@@ -30,24 +33,57 @@ export function FilterBar({
         <span className="text-xs font-bold uppercase text-action-secondary">
           Filters:
         </span>
-        {FILTER_OPTIONS.map((filter) => {
-          const isActive = activeFilters.includes(filter);
-          return (
+        {subCategories && subCategories.length > 0 ? (
+          <>
             <button
-              key={filter}
-              onClick={() => onFilterToggle(filter)}
+              onClick={() => onFilterToggle("__all__")}
               className={cn(
-                "inline-flex h-[35px] items-center gap-3 rounded-md px-4 text-[13px] font-semibold transition-colors",
-                isActive
+                "inline-flex h-[35px] items-center rounded-md px-4 text-[13px] font-semibold transition-colors",
+                activeFilters.length === 0
                   ? "bg-action-secondary text-white"
                   : "bg-white text-text-primary hover:bg-surface-secondary"
               )}
             >
-              {filter}
-              <ChevronDown className="h-3 w-3" />
+              All
             </button>
-          );
-        })}
+            {subCategories.map((sub) => {
+              const isActive = activeFilters.includes(sub.slug);
+              return (
+                <button
+                  key={sub.slug}
+                  onClick={() => onFilterToggle(sub.slug)}
+                  className={cn(
+                    "inline-flex h-[35px] items-center rounded-md px-4 text-[13px] font-semibold transition-colors",
+                    isActive
+                      ? "bg-action-secondary text-white"
+                      : "bg-white text-text-primary hover:bg-surface-secondary"
+                  )}
+                >
+                  {sub.name}
+                </button>
+              );
+            })}
+          </>
+        ) : (
+          FILTER_OPTIONS.map((filter) => {
+            const isActive = activeFilters.includes(filter);
+            return (
+              <button
+                key={filter}
+                onClick={() => onFilterToggle(filter)}
+                className={cn(
+                  "inline-flex h-[35px] items-center gap-3 rounded-md px-4 text-[13px] font-semibold transition-colors",
+                  isActive
+                    ? "bg-action-secondary text-white"
+                    : "bg-white text-text-primary hover:bg-surface-secondary"
+                )}
+              >
+                {filter}
+                <ChevronDown className="h-3 w-3" />
+              </button>
+            );
+          })
+        )}
       </div>
 
       {/* Sort group */}

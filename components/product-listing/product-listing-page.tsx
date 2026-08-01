@@ -8,31 +8,41 @@ import { FilterBar } from "@/components/product-listing/filter-bar";
 import { ProductGrid } from "@/components/product-listing/product-grid";
 import { Pagination } from "@/components/product-listing/pagination";
 import type { NavCategory } from "@/lib/square/types";
-import {
-  type CategoryData,
-  getProductsByCategory,
-} from "@/lib/data/products";
+import type { CategoryData } from "@/lib/data/products";
+import type { SquareSubCategory } from "@/lib/square/catalog";
 
 interface ProductListingPageProps {
   category: CategoryData;
-  navCategories?: NavCategory[];
+  navCategories: NavCategory[];
+  /** Products for this category — always required (fetched from Square). */
+  products: { slug: string; title: string; category: string; subCategory?: string; subCategorySlug?: string; price: number; image?: string; gradient?: string }[];
+  /** Subcategories for filtering */
+  subCategories?: SquareSubCategory[];
 }
 
 const ITEMS_PER_PAGE = 12;
 
-export function ProductListingPage({ category, navCategories }: ProductListingPageProps) {
+export function ProductListingPage({
+  category,
+  navCategories,
+  products: allProducts,
+  subCategories,
+}: ProductListingPageProps) {
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
   const [currentSort, setCurrentSort] = useState("Featured");
   const [currentPage, setCurrentPage] = useState(1);
 
-  const allProducts = useMemo(
-    () => getProductsByCategory(category.slug),
-    [category.slug]
-  );
+  // Apply subcategory filtering
+  const filteredProducts = useMemo(() => {
+    if (activeFilters.length === 0) return allProducts;
+    return allProducts.filter(
+      (p) => p.subCategorySlug && activeFilters.includes(p.subCategorySlug)
+    );
+  }, [allProducts, activeFilters]);
 
   // Apply sorting
   const sortedProducts = useMemo(() => {
-    const sorted = [...allProducts];
+    const sorted = [...filteredProducts];
     switch (currentSort) {
       case "Price: Low to High":
         return sorted.sort((a, b) => a.price - b.price);
@@ -43,7 +53,7 @@ export function ProductListingPage({ category, navCategories }: ProductListingPa
       default:
         return sorted;
     }
-  }, [allProducts, currentSort]);
+  }, [filteredProducts, currentSort]);
 
   // Apply pagination
   const totalPages = Math.max(1, Math.ceil(sortedProducts.length / ITEMS_PER_PAGE));
@@ -54,11 +64,15 @@ export function ProductListingPage({ category, navCategories }: ProductListingPa
   );
 
   const handleFilterToggle = (filter: string) => {
-    setActiveFilters((prev) =>
-      prev.includes(filter)
-        ? prev.filter((f) => f !== filter)
-        : [...prev, filter]
-    );
+    if (filter === "__all__") {
+      setActiveFilters([]);
+    } else {
+      setActiveFilters((prev) =>
+        prev.includes(filter)
+          ? prev.filter((f) => f !== filter)
+          : [...prev, filter]
+      );
+    }
     setCurrentPage(1);
   };
 
@@ -82,12 +96,13 @@ export function ProductListingPage({ category, navCategories }: ProductListingPa
           backgroundImage={category.backgroundImage}
         />
         <FilterBar
-          totalResults={allProducts.length}
+          totalResults={filteredProducts.length}
           showingCount={paginatedProducts.length}
           activeFilters={activeFilters}
           currentSort={currentSort}
           onFilterToggle={handleFilterToggle}
           onSortChange={handleSortChange}
+          subCategories={subCategories?.map((s) => ({ slug: s.slug, name: s.name }))}
         />
         <ProductGrid products={paginatedProducts} />
         <Pagination

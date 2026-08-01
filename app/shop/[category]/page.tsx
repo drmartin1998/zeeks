@@ -1,44 +1,78 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ProductListingPage } from "@/components/product-listing";
-import { CATEGORIES } from "@/lib/data/products";
 import { getNavCategories } from "@/lib/data/categories";
+import {
+  type SquareProduct,
+  getSquareCategoryBySlug,
+  getSquareProductsByCategorySlug,
+  getSquareSubcategories,
+} from "@/lib/square/catalog";
 
 interface PageProps {
   params: Promise<{ category: string }>;
 }
 
-export async function generateStaticParams() {
-  return CATEGORIES.map((cat) => ({
-    category: cat.slug,
-  }));
+function toProduct(sp: SquareProduct) {
+  return {
+    slug: sp.title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, ""),
+    title: sp.title,
+    category: sp.category,
+    subCategory: sp.subCategory,
+    subCategorySlug: sp.subCategorySlug,
+    price: sp.price,
+    image: sp.image || undefined,
+    gradient: sp.gradient,
+  };
 }
 
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
   const { category } = await params;
-  const cat = CATEGORIES.find((c) => c.slug === category);
+  const cat = await getSquareCategoryBySlug(category);
 
   if (!cat) {
     return { title: "Category Not Found - Zeeks" };
   }
 
   return {
-    title: `${cat.name} - Zeeks`,
-    description: cat.description,
+    title: `${cat.title} - Zeeks`,
+    description: `Browse our ${cat.title.toLowerCase()} collection.`,
   };
 }
 
 export default async function CategoryPage({ params }: PageProps) {
   const { category } = await params;
-  const cat = CATEGORIES.find((c) => c.slug === category);
+
+  const cat = await getSquareCategoryBySlug(category);
 
   if (!cat) {
     notFound();
   }
 
-  const navCategories = await getNavCategories();
+  const [navCategories, squareProducts, subCategories] = await Promise.all([
+    getNavCategories(),
+    getSquareProductsByCategorySlug(category),
+    getSquareSubcategories(category),
+  ]);
 
-  return <ProductListingPage category={cat!} navCategories={navCategories} />;
+  const products = (squareProducts ?? []).map(toProduct);
+
+  return (
+    <ProductListingPage
+      category={{
+        slug: cat.slug,
+        name: cat.title,
+        description: `Browse our full collection of ${cat.title.toLowerCase()} products.`,
+        backgroundImage: cat.image,
+      }}
+      navCategories={navCategories}
+      products={products}
+      subCategories={subCategories}
+    />
+  );
 }

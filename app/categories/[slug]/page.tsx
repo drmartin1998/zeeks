@@ -1,8 +1,12 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { getCategoryBySlug, getProductsByCategorySlug } from "@/lib/data";
-import { GameCard } from "@/components/game-card";
+import {
+  getSquareCategoryBySlug,
+  getSquareProductsByCategorySlug,
+  getSquareSubcategories,
+} from "@/lib/square/catalog";
+import { CategoryProductGrid } from "@/components/category-product-grid";
 import { NavBarServer } from "@/components/nav-bar-server";
 import { Footer } from "@/components/footer";
 
@@ -12,12 +16,18 @@ interface CategoryPageProps {
 
 export default async function CategoryPage({ params }: CategoryPageProps) {
   const { slug } = await params;
-  const category = getCategoryBySlug(slug);
-  const products = getProductsByCategorySlug(slug);
+
+  const [category, products, subCategories] = await Promise.all([
+    getSquareCategoryBySlug(slug),
+    getSquareProductsByCategorySlug(slug),
+    getSquareSubcategories(slug),
+  ]);
 
   if (!category) {
     notFound();
   }
+
+  const safeProducts = products ?? [];
 
   return (
     <div className="flex min-h-screen flex-col overflow-x-hidden">
@@ -48,37 +58,13 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
           </div>
         </section>
 
-        {/* Products grid */}
+        {/* Products grid with subcategory filter */}
         <section className="w-full bg-white">
           <div className="mx-auto flex max-w-[1440px] flex-col gap-8 px-4 py-12 md:px-8 lg:px-20 lg:py-16">
-            {products.length > 0 ? (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
-                {products.map((product) => (
-                  <GameCard
-                    key={product.title}
-                    title={product.title}
-                    category={product.category}
-                    categorySlug={product.categorySlug}
-                    price={product.price}
-                    image={product.image}
-                    gradient={product.gradient}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-4 py-20 text-center">
-                <p className="text-lg" style={{ color: "#6B6B8A" }}>
-                  No products found in this category yet.
-                </p>
-                <Link
-                  href="/"
-                  className="text-sm font-semibold transition-colors hover:opacity-80"
-                  style={{ color: "#7B4FA2" }}
-                >
-                  ← Back to Home
-                </Link>
-              </div>
-            )}
+            <CategoryProductGrid
+              products={safeProducts}
+              subCategories={subCategories}
+            />
           </div>
         </section>
       </main>
