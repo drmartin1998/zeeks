@@ -1,6 +1,6 @@
 <!--
   === SYNC IMPACT REPORT ===
-  Version change: 1.1.0 → 1.2.0 (expanded Principle VI to Testing Trophy, added Testing Quality Gates)
+  Version change: 1.2.0 → 1.2.1 (added Local Development Server gate)
   Principles:
     - Updated: VI. Gherkin-First Testing → VI. Gherkin-First Testing (Testing Trophy)
       Expanded with Kent C. Dodds' Testing Trophy layers, anti-patterns, and coverage strategy
@@ -240,6 +240,13 @@ early failure with actionable messages rather than cryptic Square API errors.
 - **Rollback**: Vercel's instant rollback MUST be verified after every
   production deployment.
 
+### Local Development Server
+
+- Before starting `npm run dev`, check if port 3000 is already in use
+  (`lsof -ti:3000`). If the dev server is already running, reuse it.
+  Never start a second instance or kill a process the user may be using.
+- Applies to both manual development and automated test runs.
+
 ### Constitution Compliance
 
 Every implementation plan (`plan.md`) MUST include a Constitution Check
@@ -262,4 +269,4 @@ All code reviews MUST verify compliance with the Core Principles. Any
 principle violation MUST be explicitly justified and documented in the
 PR description.
 
-**Version**: 1.2.0 | **Ratified**: 2026-08-01 | **Last Amended**: 2026-08-01
+**Version**: 1.2.1 | **Ratified**: 2026-08-01 | **Last Amended**: 2026-08-01
