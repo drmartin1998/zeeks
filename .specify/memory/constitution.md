@@ -1,25 +1,21 @@
 <!--
   === SYNC IMPACT REPORT ===
-  Version change: 1.0.0 → 1.1.0 (added Branching Strategy gate)
+  Version change: 1.1.0 → 1.2.0 (expanded Principle VI to Testing Trophy, added Testing Quality Gates)
   Principles:
-    - Created: I. Server Components First
-    - Created: II. API Route Security (Square API)
-    - Created: III. Type-Safe Data Flow
-    - Created: IV. Vercel-Native Performance
-    - Created: V. Progressive Enhancement
-    - Created: VI. Gherkin-First Testing
-    - Created: VII. Environment-Driven Configuration
+    - Updated: VI. Gherkin-First Testing → VI. Gherkin-First Testing (Testing Trophy)
+      Expanded with Kent C. Dodds' Testing Trophy layers, anti-patterns, and coverage strategy
   Sections:
-    - Created: Technology Stack
-    - Created: Development Workflow & Quality Gates
-    - Added: Branching Strategy (MANDATORY) gate under Development Workflow
+    - Updated: Technology Stack (added @testing-library/react, user-event, jsdom)
+    - Added: Testing Quality Gates (static, unit+integration, E2E, Gherkin coverage, no CI skips)
+  New files:
+    - tests/SKILL.md — comprehensive testing skill with examples and configuration
   Templates requiring updates:
-    - .specify/templates/plan-template.md    ⚠ pending
+    - .specify/templates/tasks-template.md    ✅ updating next
+    - .specify/templates/plan-template.md     ⚠ pending
     - .specify/templates/spec-template.md     ⚠ pending
-    - .specify/templates/tasks-template.md    ⚠ pending
-    - git/SKILL.md                           ✅ aligned (branch safety rules)
   Follow-up TODOs:
-    - None. All placeholders filled.
+    - Install vitest, @testing-library/react, @testing-library/user-event,
+      @testing-library/jest-dom, msw, jsdom, @vitejs/plugin-react, @playwright/test
 -->
 
 # Zeeks Constitution
@@ -105,28 +101,49 @@ conditions. Progressive enhancement ensures the store is usable on slow
 connections, older browsers, and with assistive technologies. It also improves
 resilience against Square API outages.
 
-### VI. Gherkin-First Testing
+### VI. Gherkin-First Testing (Testing Trophy)
 
 Every user story MUST have a corresponding Gherkin `.feature` file in
 `specs/<feature>/features/<feature-slug>.feature` BEFORE any implementation
 code is written. This is enforced by the spec-kit Gherkin extension (hooks:
-`after_specify`, `before_implement`). Tests MUST be organized in three layers:
+`after_specify`, `before_implement`).
 
-- **Unit tests** (Vitest): Pure logic — Zod schemas, utility functions, data
-  transformations, price calculations. No Square API calls.
-- **Integration tests** (Vitest + MSW): Route Handlers with mocked Square API
-  responses. Verify request shaping, error handling, and response
-  transformation.
-- **E2E tests** (Playwright): Critical user journeys against Vercel Preview
-  Deployments. Verify the full stack works with Square Sandbox.
+Tests follow the **Testing Trophy** (Kent C. Dodds) — invest proportionally
+across four layers, ordered by investment size:
+
+| Layer | Tool | Investment | What to test |
+|-------|------|-----------|--------------|
+| **Static** | TypeScript, ESLint | Foundation (every line) | Type safety, lint rules, accessibility hints |
+| **Unit** | Vitest | Medium | Zod schemas, pure utilities, data transforms |
+| **Integration** | Vitest + RTL + MSW | **LARGEST** | Components + Route Handlers + Server Actions |
+| **E2E** | Playwright | Small (few, critical) | Checkout, search, auth user journeys |
+
+Core principles from Kent C. Dodds:
+
+- **Test behavior, not implementation details.** Query by role/text/label,
+  not by state, props, or internal method names. If a refactor doesn't break
+  tests, the tests are good.
+- **Mock at the network boundary.** Use MSW to intercept `fetch` — never
+  mock child components (`vi.mock("./Child")`), modules, or hooks.
+- **Integration tests give the most confidence per effort.** The bulk of
+  test investment lives here. Render full component trees, exercise Route
+  Handlers end-to-end, test Server Actions from form submissions.
+- **`getByRole` first, `getByTestId` last.** Prefer accessible queries
+  that mirror how users and assistive technologies find elements.
+- **No snapshot tests.** They're brittle, low-signal, and discourage
+  intentional refactoring. Use explicit assertions.
+- **Coverage is a signal, not a target.** Don't chase 100%. Focus coverage
+  on critical paths: checkout, pricing, Square API integration.
 
 Test files MUST be co-located with their target: `__tests__/` alongside the
-module under test. E2E tests live in `tests/e2e/`.
+module under test. E2E tests live in `tests/e2e/`. Setup files in
+`tests/setup/`.
 
-**Rationale**: Square API integration is the highest-risk surface. Mocked
-integration tests catch request/response mismatches before deployment.
-Gherkin scenarios ensure business stakeholders can read and validate
-acceptance criteria.
+**Rationale**: Square API integration is the highest-risk surface. The
+Testing Trophy ensures high confidence on the integration boundary without
+over-investing in brittle unit tests. Gherkin scenarios ensure business
+stakeholders can read and validate acceptance criteria while developers
+map them directly to integration and E2E tests.
 
 ### VII. Environment-Driven Configuration
 
@@ -157,10 +174,11 @@ early failure with actionable messages rather than cryptic Square API errors.
 | Icons | Lucide React | 1.x |
 | Form Validation | Zod | latest (add to deps) |
 | Commerce Backend | Square API (Sandbox → Production) | 2025-01 |
-| Deployment | Vercel (Pro) | — |
-| Testing (Unit + Integration) | Vitest | latest (add to deps) |
+| Unit + Integration Testing | Vitest | latest (add to deps) |
+| Component Testing | @testing-library/react + user-event | latest (add to deps) |
 | API Mocking | MSW (Mock Service Worker) | latest (add to deps) |
 | E2E Testing | Playwright | latest (add to deps) |
+| Deployment | Vercel (Pro) | — |
 | Caching | Vercel KV / Edge Config | — |
 
 ## Development Workflow & Quality Gates
@@ -184,6 +202,22 @@ early failure with actionable messages rather than cryptic Square API errors.
   the single formatter.
 - **Bundle Size**: No page route bundle MUST exceed 150 KB (uncompressed)
   for initial JS. Use `@next/bundle-analyzer` to verify.
+
+### Testing Quality Gates
+
+- **Static**: `tsc --noEmit` and `npm run lint` MUST pass before ANY test run.
+  These are the foundation of the Testing Trophy.
+- **Unit + Integration**: `npm test` (vitest run) MUST pass with zero failures
+  before merge. Tests MUST follow the Testing Trophy: query by role, mock at
+  the network boundary (MSW), test behavior not implementation details.
+- **E2E**: `npm run test:e2e` MUST pass against the Vercel Preview Deployment
+  URL before merge to `main`. At minimum, the happy-path checkout journey
+  MUST be covered.
+- **Gherkin Coverage**: Every `@US{N}` scenario in the `.feature` file
+  MUST have at least one corresponding integration or E2E test that
+  exercises the acceptance criteria.
+- **No skipped tests in CI**: `it.skip` and `test.skip` are permitted in
+  local development only. CI MUST run all tests.
 
 ### Branching Strategy (MANDATORY)
 
@@ -228,4 +262,4 @@ All code reviews MUST verify compliance with the Core Principles. Any
 principle violation MUST be explicitly justified and documented in the
 PR description.
 
-**Version**: 1.1.0 | **Ratified**: 2026-08-01 | **Last Amended**: 2026-08-01
+**Version**: 1.2.0 | **Ratified**: 2026-08-01 | **Last Amended**: 2026-08-01

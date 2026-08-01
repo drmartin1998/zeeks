@@ -9,7 +9,9 @@ description: "Task list template for feature implementation"
 
 **Prerequisites**: plan.md (required), spec.md (required for user stories), research.md, data-model.md, contracts/
 
-**Tests**: The examples below include test tasks. Tests are OPTIONAL - only include them if explicitly requested in the feature specification.
+**Tests**: Following the Testing Trophy (Kent C. Dodds), every user story MUST
+include test tasks. Integration tests are the largest investment; E2E for
+critical paths only. Tests MUST be written FIRST and FAIL before implementation.
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
 
@@ -80,12 +82,14 @@ Examples of foundational tasks (adjust based on your project):
 
 **Independent Test**: [How to verify this story works on its own]
 
-### Tests for User Story 1 (OPTIONAL - only if tests requested) ⚠️
+### Tests for User Story 1 (MANDATORY — Testing Trophy)
 
-> **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
+> Follows Kent C. Dodds' Testing Trophy: integration > unit > e2e.
+> Write these tests FIRST, ensure they FAIL, then implement.
 
-- [ ] T010 [P] [US1] Contract test for [endpoint] in tests/contract/test_[name].py
-- [ ] T011 [P] [US1] Integration test for [user journey] in tests/integration/test_[name].py
+- [ ] T010 [P] [US1] Unit test for [data transform / Zod schema] in `__tests__/` alongside the module (Vitest)
+- [ ] T011 [P] [US1] Integration test for [component / Route Handler] with RTL + MSW in `__tests__/` alongside the module (Vitest)
+- [ ] T012 [US1] E2E test for [critical user journey] in `tests/e2e/[feature].spec.ts` (Playwright) — only if P1 critical path
 
 ### Implementation for User Story 1
 
@@ -199,13 +203,13 @@ Examples of foundational tasks (adjust based on your project):
 ## Parallel Example: User Story 1
 
 ```bash
-# Launch all tests for User Story 1 together (if tests requested):
-Task: "Contract test for [endpoint] in tests/contract/test_[name].py"
-Task: "Integration test for [user journey] in tests/integration/test_[name].py"
+# Launch all unit + integration tests for User Story 1 together:
+Task: "Unit test for [data transform] in __tests__/utils.test.ts"
+Task: "Integration test for [component] in __tests__/component.test.tsx"
 
 # Launch all models for User Story 1 together:
-Task: "Create [Entity1] model in src/models/[entity1].py"
-Task: "Create [Entity2] model in src/models/[entity2].py"
+Task: "Create [Entity1] model in lib/models/[entity1].ts"
+Task: "Create [Entity2] model in lib/models/[entity2].ts"
 ```
 
 ---
