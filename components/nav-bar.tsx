@@ -5,8 +5,16 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Search, ShoppingBag, User } from "lucide-react";
 import { NAV_CATEGORIES } from "@/lib/data";
+import type { NavCategory } from "@/lib/square/types";
 
-export function NavBar() {
+interface NavBarProps {
+  /** Categories pulled from Square API. Falls back to hardcoded data when omitted. */
+  categories?: NavCategory[];
+}
+
+export function NavBar({ categories }: NavBarProps) {
+  const navItems = categories && categories.length > 0 ? categories : NAV_CATEGORIES;
+
   return (
     <header
       className={cn(
@@ -51,7 +59,7 @@ export function NavBar() {
       {/* Category row - scrollable below lg */}
       <div className="border-t border-border-default bg-white">
         <div className="mx-auto flex h-[56px] max-w-[1440px] items-center gap-4 overflow-x-auto whitespace-nowrap px-4 lg:gap-8 lg:px-20 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          {NAV_CATEGORIES.map((cat) => (
+          {navItems.map((cat) => (
             <Link
               key={cat.label}
               href={cat.href}

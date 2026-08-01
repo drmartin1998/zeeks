@@ -41,6 +41,13 @@ export const CATEGORIES: Category[] = [
   },
 ];
 
+/**
+ * Hardcoded navigation categories.
+ *
+ * @deprecated Use {@link getNavCategories} from `@/lib/data/categories` instead.
+ *   That function pulls categories from the Square Catalog API and appends
+ *   "About Us", "Locations", and "Sale". This export is kept as a fallback.
+ */
 export const NAV_CATEGORIES = [
   { label: "Miniatures", href: "/categories/miniatures" },
   { label: "Board Games", href: "/categories/board-games" },

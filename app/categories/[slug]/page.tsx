@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getCategoryBySlug, getProductsByCategorySlug } from "@/lib/data";
 import { GameCard } from "@/components/game-card";
-import { NavBar } from "@/components/nav-bar";
+import { NavBarServer } from "@/components/nav-bar-server";
 import { Footer } from "@/components/footer";
 
 interface CategoryPageProps {
@@ -21,7 +21,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
 
   return (
     <div className="flex min-h-screen flex-col overflow-x-hidden">
-      <NavBar />
+      <NavBarServer />
       <main className="flex-1 overflow-x-hidden">
         {/* Breadcrumb + header */}
         <section className="w-full" style={{ backgroundColor: "#F5F3FF" }}>
