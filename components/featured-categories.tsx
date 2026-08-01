@@ -1,11 +1,5 @@
 import { CategoryCard } from "@/components/category-card";
-
-const CATEGORIES = [
-  { title: "Warhammer 40K", image: "/category-cards/warhammer-category-card.png", href: "#" },
-  { title: "Collectible Card Games", image: "/category-cards/magic-category-card.png", href: "#" },
-  { title: "Roleplaying Games", image: "/category-cards/rpg-category-card.png", href: "#" },
-  { title: "Paints & Tools", image: "/category-cards/paint-category-card.png", href: "#" },
-];
+import { CATEGORIES } from "@/lib/data";
 
 export function FeaturedCategories() {
   return (

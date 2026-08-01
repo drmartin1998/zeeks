@@ -1,37 +1,7 @@
 import { GameCard } from "@/components/game-card";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-
-const FEATURED_GAMES = [
-  {
-    title: "Leviathan Starter Set",
-    category: "Warhammer 40K",
-    price: 210.0,
-    image: "/games/leviathan.png",
-    gradient: "from-slate-700 to-slate-900",
-  },
-  {
-    title: "Kill Team: Hivestorm",
-    category: "Warhammer 40K",
-    price: 160.0,
-    image: "/games/hivestorm.png",
-    gradient: "from-emerald-700 to-emerald-900",
-  },
-  {
-    title: "MTG Foundations Starter",
-    category: "Collectible Card Game",
-    price: 59.99,
-    image: "/games/foundations.png",
-    gradient: "from-amber-600 to-red-800",
-  },
-  {
-    title: "Pokémon 151 Elite Trainer",
-    category: "Collectible Card Game",
-    price: 49.99,
-    image: "/games/pokemon.jpg",
-    gradient: "from-blue-600 to-indigo-800",
-  },
-];
+import { FEATURED_GAMES } from "@/lib/data";
 
 export function FeaturedGames() {
   return (
@@ -47,7 +17,7 @@ export function FeaturedGames() {
             </h2>
           </div>
           <Link
-            href="#"
+            href="/categories/new-arrivals"
             className="flex items-center gap-1.5 text-sm font-bold transition-colors hover:opacity-80"
             style={{ color: "#E89516" }}
           >
@@ -63,6 +33,7 @@ export function FeaturedGames() {
               key={game.title}
               title={game.title}
               category={game.category}
+              categorySlug={game.categorySlug}
               price={game.price}
               image={game.image}
               gradient={game.gradient}

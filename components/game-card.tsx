@@ -1,9 +1,11 @@
+import NextLink from "next/link";
 import { Button } from "@/components/ui/button";
 import { Link } from "@/components/ui/link";
 
 interface GameCardProps {
   title: string;
   category: string;
+  categorySlug?: string;
   price: number;
   image?: string;
   gradient?: string;
@@ -12,6 +14,7 @@ interface GameCardProps {
 export function GameCard({
   title,
   category,
+  categorySlug,
   price = 185.0,
   image,
   gradient = "from-zeeks-purple to-zeeks-purple-dark",
@@ -39,10 +42,19 @@ export function GameCard({
       <div className="flex flex-col gap-4 p-5">
         {/* Category + title + price — as in Figma text-meta group */}
         <div className="flex flex-col gap-1">
-          {/* Category badge */}
-          <span className="text-xs font-semibold uppercase tracking-wide text-status-sale">
-            {category}
-          </span>
+          {/* Category badge — now a clickable link */}
+          {categorySlug ? (
+            <NextLink
+              href={`/categories/${categorySlug}`}
+              className="text-xs font-semibold uppercase tracking-wide text-status-sale transition-colors hover:text-status-sale/70"
+            >
+              {category}
+            </NextLink>
+          ) : (
+            <span className="text-xs font-semibold uppercase tracking-wide text-status-sale">
+              {category}
+            </span>
+          )}
           {/* Title as clickable link */}
           <Link href="#" className="text-lg">
             {title}

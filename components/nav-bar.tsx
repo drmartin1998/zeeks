@@ -4,16 +4,7 @@ import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Search, ShoppingBag, User } from "lucide-react";
-
-const CATEGORIES = [
-  { label: "Miniatures", href: "#" },
-  { label: "Board Games", href: "#" },
-  { label: "Card Games", href: "#" },
-  { label: "Supplies", href: "#" },
-  { label: "About Us", href: "#" },
-  { label: "Locations", href: "#" },
-  { label: "Sale", href: "#", highlight: true },
-];
+import { NAV_CATEGORIES } from "@/lib/data";
 
 export function NavBar() {
   return (
@@ -60,7 +51,7 @@ export function NavBar() {
       {/* Category row - scrollable below lg */}
       <div className="border-t border-border-default bg-white">
         <div className="mx-auto flex h-[56px] max-w-[1440px] items-center gap-4 overflow-x-auto whitespace-nowrap px-4 lg:gap-8 lg:px-20 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          {CATEGORIES.map((cat) => (
+          {NAV_CATEGORIES.map((cat) => (
             <Link
               key={cat.label}
               href={cat.href}
