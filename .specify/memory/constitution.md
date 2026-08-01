@@ -242,10 +242,12 @@ early failure with actionable messages rather than cryptic Square API errors.
 
 ### Local Development Server
 
-- Before starting `npm run dev`, check if port 3000 is already in use
-  (`lsof -ti:3000`). If the dev server is already running, reuse it.
-  Never start a second instance or kill a process the user may be using.
-- Applies to both manual development and automated test runs.
+- **ALWAYS use `vercel dev`** to start the local server — never `npm run dev`
+  or `next dev`. `vercel dev` pulls Vercel Environment Variables and mirrors
+  the production runtime.
+- Before starting, check if port 3000 is already in use (`lsof -ti:3000`).
+  If the dev server is already running, reuse it. Never start a second
+  instance or kill a process the user may be using.
 
 ### Constitution Compliance
 
