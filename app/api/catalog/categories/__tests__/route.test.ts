@@ -24,14 +24,14 @@ describe("GET /api/catalog/categories", () => {
     mockSearch.mockResolvedValueOnce({
       objects: [
         {
-          id: "CAT1",
-          type: "CATEGORY",
-          categoryData: { name: "Board Games" },
-        },
-        {
-          id: "CAT2",
+          id: "ZCZJWQX6WREDLATZFW3U7OCJ",
           type: "CATEGORY",
           categoryData: { name: "Miniatures" },
+        },
+        {
+          id: "62G7JSXJDS4U574NW4XS4WKV",
+          type: "CATEGORY",
+          categoryData: { name: "Hobby Supplies" },
         },
       ],
     });
@@ -43,12 +43,12 @@ describe("GET /api/catalog/categories", () => {
     expect(Array.isArray(data)).toBe(true);
     expect(data).toHaveLength(2);
     expect(data[0]).toEqual({
-      label: "Board Games",
-      href: "/categories/board-games",
-    });
-    expect(data[1]).toEqual({
       label: "Miniatures",
       href: "/categories/miniatures",
+    });
+    expect(data[1]).toEqual({
+      label: "Hobby Supplies",
+      href: "/categories/hobby-supplies",
     });
 
     // Verify cache headers
@@ -80,32 +80,33 @@ describe("GET /api/catalog/categories", () => {
   });
 
   it("should exclude sub-categories that have a parentCategoryId", async () => {
+    const MINIATURES_ID = "ZCZJWQX6WREDLATZFW3U7OCJ";
     mockSearch.mockResolvedValueOnce({
       objects: [
         {
-          id: "CAT1",
-          type: "CATEGORY",
-          categoryData: { name: "Board Games" },
-        },
-        {
-          id: "CAT2",
-          type: "CATEGORY",
-          categoryData: {
-            name: "Strategy Games",
-            parentCategoryId: "CAT1",
-          },
-        },
-        {
-          id: "CAT3",
+          id: MINIATURES_ID,
           type: "CATEGORY",
           categoryData: { name: "Miniatures" },
         },
         {
-          id: "CAT4",
+          id: "SUB1",
           type: "CATEGORY",
           categoryData: {
             name: "Warhammer 40K",
-            parentCategoryId: "CAT3",
+            parentCategoryId: MINIATURES_ID,
+          },
+        },
+        {
+          id: "62G7JSXJDS4U574NW4XS4WKV",
+          type: "CATEGORY",
+          categoryData: { name: "Hobby Supplies" },
+        },
+        {
+          id: "SUB2",
+          type: "CATEGORY",
+          categoryData: {
+            name: "Paints",
+            parentCategoryId: "62G7JSXJDS4U574NW4XS4WKV",
           },
         },
       ],
@@ -118,8 +119,8 @@ describe("GET /api/catalog/categories", () => {
     // Only top-level categories (no parentCategoryId) should be returned
     expect(data).toHaveLength(2);
     expect(data.map((c: { label: string }) => c.label)).toEqual([
-      "Board Games",
       "Miniatures",
+      "Hobby Supplies",
     ]);
   });
 
@@ -127,19 +128,19 @@ describe("GET /api/catalog/categories", () => {
     mockSearch.mockResolvedValueOnce({
       objects: [
         {
-          id: "CAT1",
+          id: "ZCZJWQX6WREDLATZFW3U7OCJ",
           type: "CATEGORY",
-          categoryData: { name: "Board Games" },
+          categoryData: { name: "Miniatures" },
         },
         {
           id: "ITEM1",
           type: "ITEM",
-          itemData: { name: "Catan" },
+          itemData: { name: "Space Marines" },
         },
         {
-          id: "CAT2",
+          id: "62G7JSXJDS4U574NW4XS4WKV",
           type: "CATEGORY",
-          categoryData: { name: "Miniatures" },
+          categoryData: { name: "Hobby Supplies" },
         },
       ],
     });
@@ -150,8 +151,8 @@ describe("GET /api/catalog/categories", () => {
     expect(response.status).toBe(200);
     expect(data).toHaveLength(2);
     expect(data.map((c: { label: string }) => c.label)).toEqual([
-      "Board Games",
       "Miniatures",
+      "Hobby Supplies",
     ]);
   });
 });

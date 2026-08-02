@@ -6,11 +6,11 @@ import {
 import type { CatalogObject } from "square";
 
 // ---------------------------------------------------------------------------
-// Internal helpers
+// Pure data transforms (exported for use by Route Handlers and components)
 // ---------------------------------------------------------------------------
 
-/** Slugify a Square category name the same way the NavBar does */
-function slugify(name: string): string {
+/** Slugify a Square category name the same way the NavBar does. */
+export function slugify(name: string): string {
   return name
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
@@ -18,12 +18,13 @@ function slugify(name: string): string {
 }
 
 /**
- * Minimum price in dollars we'll show.
- * Square sends amounts in smallest currency units (cents), and some items
- * may legitimately have price 0 (e.g. free digital goods).  We keep 0 as
- * valid so those items still appear.
+ * Convert a Square price amount (in smallest currency unit) to dollars.
+ * Square sends amounts in cents; some items may legitimately have price 0
+ * (e.g. free digital goods), so 0 is a valid return value.
  */
-function normalizePrice(amountInSmallestUnit: bigint | null | undefined): number {
+export function normalizePrice(
+  amountInSmallestUnit: bigint | null | undefined
+): number {
   if (amountInSmallestUnit === undefined || amountInSmallestUnit === null)
     return 0;
   return Number(amountInSmallestUnit) / 100;
@@ -37,11 +38,28 @@ async function fetchAllCategories(): Promise<SquareCatalogCategory[]> {
   });
   const objects =
     (response as { objects?: SquareCatalogCategory[] }).objects ?? [];
-  return objects.filter(
-    (cat: SquareCatalogCategory): cat is SquareCatalogCategory =>
-      cat.type === "CATEGORY" && !!cat.categoryData
-  );
+  return objects
+    .filter(
+      (cat: SquareCatalogCategory): cat is SquareCatalogCategory =>
+        cat.type === "CATEGORY" && !!cat.categoryData
+    )
+    .filter((cat) => {
+      // Subcategories always pass through (filtered at consumer level via isTopLevelCategory)
+      if (cat.categoryData.parentCategoryId) return true;
+      // Top-level categories must be in the allowlist
+      return ALLOWED_CATEGORY_IDS.includes(cat.id);
+    });
 }
+
+/**
+ * Square category IDs that are allowed as top-level categories.
+ * Only Miniatures and Hobby Supplies are currently allowlisted.
+ * All other top-level Square categories are filtered out.
+ */
+const ALLOWED_CATEGORY_IDS: string[] = [
+  "ZCZJWQX6WREDLATZFW3U7OCJ", // Miniatures
+  "62G7JSXJDS4U574NW4XS4WKV", // Hobby Supplies
+];
 
 // ---------------------------------------------------------------------------
 // Types
@@ -78,7 +96,10 @@ export interface SquareProduct {
 
 /**
  * Fetch all top-level Square categories.
- * Returns an empty array on error (no mock data fallback).
+ *
+ * @deprecated Use `fetch("/api/catalog/categories")` from Server Components
+ *   instead. This direct SDK call bypasses Route Handlers, which violates
+ *   Constitution Principle II. Kept for backward compatibility during migration.
  */
 export async function getSquareCategories(): Promise<SquareCategory[]> {
   try {
@@ -100,7 +121,10 @@ export async function getSquareCategories(): Promise<SquareCategory[]> {
 
 /**
  * Look up a single top-level Square category by its slug.
- * Returns `null` when the category cannot be found or the API errors out.
+ *
+ * @deprecated Use `fetch("/api/catalog/products?slug={slug}")` from Server
+ *   Components instead. This direct SDK call bypasses Route Handlers, which
+ *   violates Constitution Principle II. Kept for backward compatibility.
  */
 export async function getSquareCategoryBySlug(
   slug: string
@@ -127,7 +151,10 @@ export async function getSquareCategoryBySlug(
 
 /**
  * Fetch subcategories for a given parent category slug.
- * Returns an empty array on error or if no subcategories exist.
+ *
+ * @deprecated Use `fetch("/api/catalog/products?slug={slug}")` from Server
+ *   Components and extract subcategory info from the response. This direct
+ *   SDK call bypasses Route Handlers. Kept for backward compatibility.
  */
 export async function getSquareSubcategories(
   parentSlug: string
@@ -173,7 +200,9 @@ export async function getSquareSubcategories(
  * 2. Uses `searchItems` with ALL those category IDs.
  * 3. Annotates each product with its subcategory info when applicable.
  *
- * Returns `null` on any error.
+ * @deprecated Use `fetch("/api/catalog/products?slug={slug}")` from Server
+ *   Components instead. The new Route Handler provides the same data through
+ *   the proper architecture (Constitution II). Kept for backward compatibility.
  */
 export async function getSquareProductsByCategorySlug(
   slug: string
@@ -214,44 +243,41 @@ export async function getSquareProductsByCategorySlug(
     let cursor: string | undefined;
 
     do {
-      const itemResponse = await catalogApi.searchItems({
+      const { items, cursor: nextCursor } = await catalogApi.searchItems({
         categoryIds: allCategoryIds,
         enabledLocationIds: [locationId],
         cursor,
-        limit: 1000,
+        limit: 100,
       });
 
-      const response = itemResponse as {
-        items?: CatalogObject[];
-        cursor?: string;
-      };
-
-      if (response.items) {
-        allItems.push(...response.items);
+      if (items) {
+        allItems.push(...items);
       }
 
-      cursor = response.cursor;
+      cursor = nextCursor;
     } while (cursor);
 
     return allItems
       .filter(
         (item): item is CatalogObject.Item =>
-          item.type === "ITEM" && !!item.itemData
+          item.type === "ITEM" && !!(item as unknown as Record<string, unknown>).itemData
       )
       .map((item) => {
-        const itemData = item.itemData!;
-        const firstVariation = itemData.variations?.[0];
-        const priceMoney =
-          firstVariation?.type === "ITEM_VARIATION"
-            ? firstVariation.itemVariationData?.priceMoney
-            : undefined;
+        const raw = item as unknown as Record<string, unknown>;
+        const itemData = raw.itemData as Record<string, unknown> | undefined;
+        const name = (itemData?.name as string) ?? "Untitled";
+        const variations = (itemData?.variations as Record<string, unknown>[]) ?? [];
+        const firstVariation = variations[0];
+        const varData = firstVariation?.itemVariationData as Record<string, unknown> | undefined;
+        const priceMoney = varData?.priceMoney as { amount?: bigint; currency?: string } | undefined;
 
         // Determine which subcategory (if any) this product belongs to
         let subCategory: string | undefined;
         let subCategorySlug: string | undefined;
 
-        if (itemData.categories) {
-          for (const catRef of itemData.categories) {
+        const categories = itemData?.categories as { id?: string }[] | undefined;
+        if (categories) {
+          for (const catRef of categories) {
             if (catRef.id && subCategoryMap.has(catRef.id)) {
               const sub = subCategoryMap.get(catRef.id)!;
               subCategory = sub.name;
@@ -262,7 +288,7 @@ export async function getSquareProductsByCategorySlug(
         }
 
         return {
-          title: itemData.name ?? "Untitled",
+          title: name,
           category: parentName,
           categorySlug: slug,
           subCategory,

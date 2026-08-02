@@ -1,5 +1,5 @@
 import { GameCard } from "@/components/game-card";
-import type { Product } from "@/lib/data/products";
+import type { DisplayProduct as Product } from "@/lib/square/types";
 
 interface ProductGridProps {
   products: Product[];

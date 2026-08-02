@@ -37,7 +37,6 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
         {/* Breadcrumb + header */}
         <section className="w-full" style={{ backgroundColor: "#F5F3FF" }}>
           <div className="mx-auto flex max-w-[1440px] flex-col gap-4 px-4 py-8 md:px-8 lg:px-20 lg:py-12">
-            {/* Back link */}
             <Link
               href="/"
               className="flex w-fit items-center gap-1.5 text-sm font-semibold transition-colors hover:opacity-80"
@@ -46,8 +45,6 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
               <ArrowLeft className="h-4 w-4" />
               Back to Home
             </Link>
-
-            {/* Category title */}
             <div className="flex flex-col gap-2">
               <h1 className="font-heading text-[40px] font-extrabold leading-tight" style={{ color: "#0E0E2C" }}>
                 {category.title}

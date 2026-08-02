@@ -7,19 +7,19 @@ import { Footer } from "@/components/footer";
 import {
   getSquareCategories,
   getSquareProductsByCategorySlug,
+  type SquareProduct,
 } from "@/lib/square/catalog";
 
 export default async function Home() {
   const [squareCategories, ...featuredResults] = await Promise.all([
     getSquareCategories(),
-    // Pick featured products from the first 2 categories that have items
-    getSquareProductsByCategorySlug("board-games"),
+    getSquareProductsByCategorySlug("miniatures"),
   ]);
 
-  const featuredGames =
+  const featuredGames: SquareProduct[] =
     featuredResults
       .flat()
-      .filter((g): g is NonNullable<typeof g> => g != null)
+      .filter((g): g is SquareProduct => g != null)
       .slice(0, 4);
 
   return (

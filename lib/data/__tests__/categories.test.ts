@@ -37,9 +37,9 @@ describe("getNavCategories error handling", () => {
     mockSearch.mockResolvedValue({
       objects: [
         {
-          id: "CAT1",
+          id: "ZCZJWQX6WREDLATZFW3U7OCJ",
           type: "CATEGORY" as const,
-          categoryData: { name: "Board Games" },
+          categoryData: { name: "Miniatures" },
         },
       ],
     });
@@ -50,8 +50,8 @@ describe("getNavCategories error handling", () => {
 
     // Should have Square category + static links
     expect(categories).toContainEqual({
-      label: "Board Games",
-      href: "/categories/board-games",
+      label: "Miniatures",
+      href: "/categories/miniatures",
     });
   });
 });

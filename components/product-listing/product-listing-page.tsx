@@ -8,8 +8,7 @@ import { CategoryHero } from "@/components/product-listing/category-hero";
 import { FilterBar } from "@/components/product-listing/filter-bar";
 import { ProductGrid } from "@/components/product-listing/product-grid";
 import { Pagination } from "@/components/product-listing/pagination";
-import type { NavCategory } from "@/lib/square/types";
-import type { CategoryData } from "@/lib/data/products";
+import type { NavCategory, CategoryDisplayData as CategoryData } from "@/lib/square/types";
 import type { SquareSubCategory } from "@/lib/square/catalog";
 
 interface ProductListingPageProps {

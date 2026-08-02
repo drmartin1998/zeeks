@@ -7,6 +7,15 @@ import {
   mapSquareCategoryToNavCategory,
 } from "@/lib/square/types";
 
+/**
+ * Square category IDs that are allowed as top-level categories.
+ * Mirrors ALLOWED_CATEGORY_IDS in lib/square/catalog.ts.
+ */
+const ALLOWED_CATEGORY_IDS = [
+  "ZCZJWQX6WREDLATZFW3U7OCJ", // Miniatures
+  "62G7JSXJDS4U574NW4XS4WKV", // Hobby Supplies
+];
+
 export async function GET(): Promise<NextResponse<NavCategory[] | { error: string }>> {
   try {
     const response = await catalogApi.search({
@@ -21,6 +30,12 @@ export async function GET(): Promise<NextResponse<NavCategory[] | { error: strin
         (obj: SquareCatalogCategory): obj is SquareCatalogCategory =>
           obj.type === "CATEGORY" && !!obj.categoryData
       )
+      .filter((cat) => {
+        // Subcategories always pass through
+        if (cat.categoryData.parentCategoryId) return true;
+        // Top-level categories must be in the allowlist
+        return ALLOWED_CATEGORY_IDS.includes(cat.id);
+      })
       .filter(isTopLevelCategory)
       .map(mapSquareCategoryToNavCategory);
 

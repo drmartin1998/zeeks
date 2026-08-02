@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 /**
  * Internal navigation category used by the NavBar component.
  */
@@ -64,4 +66,115 @@ export function mapSquareCategoryToNavCategory(
     label: name,
     href: `/categories/${slug}`,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Zod validation schemas for Square SDK responses (Constitution III, FR-008)
+// ---------------------------------------------------------------------------
+
+/** Validates raw Square catalog category objects. */
+export const CatalogCategorySchema = z.object({
+  id: z.string().min(1),
+  type: z.literal("CATEGORY"),
+  categoryData: z.object({
+    name: z.string().min(1),
+    parentCategoryId: z.string().optional(),
+    isTopLevel: z.boolean().optional(),
+  }),
+});
+
+/** Validates raw Square catalog item objects. */
+export const CatalogItemSchema = z.object({
+  id: z.string().min(1),
+  type: z.literal("ITEM"),
+  itemData: z.object({
+    name: z.string(),
+    description: z.string().optional(),
+    categories: z
+      .array(z.object({ id: z.string() }))
+      .optional(),
+    variations: z
+      .array(
+        z.object({
+          type: z.literal("ITEM_VARIATION"),
+          itemVariationData: z
+            .object({
+              priceMoney: z
+                .object({
+                  amount: z.bigint().optional(),
+                  currency: z.string().optional(),
+                })
+                .optional(),
+            })
+            .optional(),
+        })
+      )
+      .optional(),
+  }),
+});
+
+/** Validates a paginated Square catalog search response. */
+export const CatalogSearchResponseSchema = z.object({
+  objects: z.array(z.unknown()).optional(),
+  cursor: z.string().optional(),
+});
+
+/** Validates the application-level Product shape passed to components. */
+export const ProductSchema = z.object({
+  id: z.string().min(1),
+  title: z.string().min(1),
+  description: z.string().optional(),
+  category: z.string().min(1),
+  categorySlug: z.string().min(1),
+  subCategory: z.string().optional(),
+  subCategorySlug: z.string().optional(),
+  price: z.number().min(0),
+  currency: z.string().default("USD"),
+  imageUrl: z.string().optional(),
+  gradient: z.string(),
+});
+
+/** Application-level product type inferred from the Zod schema. */
+export type Product = z.infer<typeof ProductSchema>;
+
+/** Validates query parameters for the products Route Handler. */
+export const SearchParamsSchema = z.object({
+  slug: z.string().min(1),
+  cursor: z.string().optional(),
+});
+
+/** Validates search query parameters for the products/search Route Handler. */
+export const ProductSearchParamsSchema = z.object({
+  q: z.string().min(1, "Search query is required"),
+  cursor: z.string().optional(),
+});
+
+/** Standard error response shape. */
+export const ErrorResponseSchema = z.object({
+  error: z.string().min(1),
+});
+
+export type ErrorResponse = z.infer<typeof ErrorResponseSchema>;
+
+/**
+ * Display-oriented product shape used by client components.
+ * Subset of Product with only the fields needed for rendering.
+ */
+export interface DisplayProduct {
+  slug: string;
+  title: string;
+  category: string;
+  price: number;
+  image?: string;
+  gradient?: string;
+}
+
+/**
+ * Category data for product listing pages.
+ */
+export interface CategoryDisplayData {
+  slug: string;
+  name: string;
+  description: string;
+  backgroundImage?: string;
 }

@@ -1,3 +1,14 @@
+/**
+ * Hardcoded mock product and category data.
+ *
+ * @deprecated This entire module is deprecated. Use the Square SDK-backed
+ *   Route Handlers instead:
+ *   - Categories: `fetch("/api/catalog/categories")`
+ *   - Products:   `fetch("/api/catalog/products?slug={slug}")`
+ *
+ *   This module is kept for backward compatibility with test files only.
+ *   Production code MUST NOT import from this module (enforced by ESLint).
+ */
 export interface Category {
   title: string;
   slug: string;

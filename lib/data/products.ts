@@ -1,3 +1,5 @@
+/** TEST-ONLY: Not for production use. */
+
 export interface Product {
   slug: string;
   title: string;
