@@ -80,19 +80,9 @@ export function ProductListingPage({
       setActiveFilters([]);
       router.push("?", { scroll: false });
     } else {
-      // Compute next value OUTSIDE the setState updater so router.push
-      // is NOT called during React's render phase (avoids "Cannot update
-      // a component while rendering a different component").
-      const next = activeFilters.includes(filter)
-        ? activeFilters.filter((f) => f !== filter)
-        : [...activeFilters, filter];
-      setActiveFilters(next);
-      // Update URL with comma-separated active filters
-      if (next.length > 0) {
-        router.push(`?sub=${next.join(",")}`, { scroll: false });
-      } else {
-        router.push("?", { scroll: false });
-      }
+      // Single-select: replace, don't append
+      setActiveFilters([filter]);
+      router.push(`?sub=${filter}`, { scroll: false });
     }
     setCurrentPage(1);
   };

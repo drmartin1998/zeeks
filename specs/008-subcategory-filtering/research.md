@@ -55,12 +55,12 @@
 
 ## 6. Multi-Subcategory Products
 
-**Decision**: Products tagged with multiple subcategories appear under all matching filter chips via `subCategorySlug` comparison.
+**Decision**: Products tagged with multiple subcategories appear under whichever single filter is active — the Category dropdown enforces single-select behavior, matching `subCategorySlug` against the one active filter.
 
-**Rationale**: The filter uses `p.subCategorySlug === activeSub`, meaning a product matches whichever chip's slug it has. If Square supports multiple category assignments per item, the current implementation already handles this naturally.
+**Rationale**: Single-select is simpler for users and avoids confusing multi-filter states. The filter uses `p.subCategorySlug === activeSub` comparison. If a product has multiple subcategory tags, it appears when any one of its tags matches the active filter. **Updated (2026-08-02)**: Changed from multi-select to single-select via the Category dropdown. Only one subcategory filter applies at a time.
 
 **Alternatives considered**:
-- Product appears only under its "primary" subcategory → rejected as arbitrary and user-hostile.
+- Multi-select chip toggling replaced by single-select dropdown for clarity.
 - Display a "Multiple" badge → considered but out of scope for v1.
 
 ## 7. Mobile Filter Chip Layout

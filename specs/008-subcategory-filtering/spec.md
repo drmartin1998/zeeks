@@ -64,7 +64,7 @@ As a shopper who has filtered a category page by subcategory, I want the active 
 
 ### Edge Cases
 
-- What happens when a product belongs to multiple subcategories? The product should appear under all matching filter chips.
+- What happens when a product belongs to multiple subcategories? The product appears under whichever single filter is currently active — only one subcategory filter can be applied at a time (single-select behavior).
 - What happens when a subcategory filter yields zero products? Display a contextual message ("No products in this subcategory") with a clear action to return to the full view.
 - What happens when a category has a very large number of products (e.g., 500+)? Pagination should limit the visible products per page (e.g., 12 per page) to maintain performance.
 - What happens on mobile viewports? Filter chips should remain accessible — either as a horizontally scrollable row or wrapped layout.
