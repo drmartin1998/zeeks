@@ -6,7 +6,7 @@ import {
 } from "@/lib/square/types";
 
 describe("isTopLevelCategory", () => {
-  it("should return true when parentCategoryId is undefined", () => {
+  it("should return true when parentCategory is undefined", () => {
     const cat: SquareCatalogCategory = {
       id: "CAT1",
       type: "CATEGORY",
@@ -15,22 +15,22 @@ describe("isTopLevelCategory", () => {
     expect(isTopLevelCategory(cat)).toBe(true);
   });
 
-  it("should return true when parentCategoryId is empty string", () => {
+  it("should return true when parentCategory.id is empty string", () => {
     const cat: SquareCatalogCategory = {
       id: "CAT2",
       type: "CATEGORY",
-      categoryData: { name: "Miniatures", parentCategoryId: "" },
+      categoryData: { name: "Miniatures", parentCategory: { id: "" } },
     };
     expect(isTopLevelCategory(cat)).toBe(true);
   });
 
-  it("should return false when parentCategoryId is set", () => {
+  it("should return false when parentCategory.id is set", () => {
     const cat: SquareCatalogCategory = {
       id: "CAT3",
       type: "CATEGORY",
       categoryData: {
         name: "Warhammer 40K",
-        parentCategoryId: "CAT1",
+        parentCategory: { id: "CAT1" },
       },
     };
     expect(isTopLevelCategory(cat)).toBe(false);
@@ -43,10 +43,10 @@ describe("isTopLevelCategory", () => {
       categoryData: {
         name: "Card Games",
         isTopLevel: true,
-        parentCategoryId: "SOME_PARENT",
+        parentCategory: { id: "SOME_PARENT" },
       },
     };
-    // isTopLevel overrides parentCategoryId
+    // isTopLevel overrides parentCategory
     expect(isTopLevelCategory(cat)).toBe(true);
   });
 
@@ -62,13 +62,13 @@ describe("isTopLevelCategory", () => {
     expect(isTopLevelCategory(cat)).toBe(false);
   });
 
-  it("should return true when parentCategoryId is null", () => {
+  it("should return true when parentCategory.id is null", () => {
     const cat: SquareCatalogCategory = {
       id: "CAT6",
       type: "CATEGORY",
       categoryData: {
         name: "Paints",
-        parentCategoryId: null as unknown as undefined,
+        parentCategory: { id: undefined } as unknown as { id: undefined },
       },
     };
     expect(isTopLevelCategory(cat)).toBe(true);

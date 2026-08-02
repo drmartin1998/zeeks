@@ -4,16 +4,7 @@ import {
   isTopLevelCategory,
   mapSquareCategoryToNavCategory,
 } from "@/lib/square/types";
-import { catalogApi } from "@/lib/square/client";
-
-/**
- * Square category IDs that are allowed as top-level categories.
- * Mirrors ALLOWED_CATEGORY_IDS in lib/square/catalog.ts.
- */
-const ALLOWED_CATEGORY_IDS = [
-  "ZCZJWQX6WREDLATZFW3U7OCJ", // Miniatures
-  "62G7JSXJDS4U574NW4XS4WKV", // Hobby Supplies
-];
+import { fetchAllCategories } from "@/lib/square/catalog";
 
 /**
  * Static navigation links that are informational pages — NOT Square-managed
@@ -28,32 +19,17 @@ const STATIC_NAV_CATEGORIES: NavCategory[] = [
 /**
  * Fetches navigation categories from the Square Catalog API.
  *
- * Returns Square-managed categories with "About Us", "Locations",
- * and "Sale" appended at the end.
+ * Uses the shared fetchAllCategories() which applies the channel filter
+ * and allowlist filter centrally. Returns only top-level categories.
  *
  * On Square API failure, returns ONLY the static nav items — never
  * falls back to mock data for Square-managed categories.
  */
 export async function getNavCategories(): Promise<NavCategory[]> {
   try {
-    const response = await catalogApi.search({
-      objectTypes: ["CATEGORY"],
-      includeDeletedObjects: false,
-    });
-
-    const objects = (response as { objects?: SquareCatalogCategory[] }).objects ?? [];
+    const objects = await fetchAllCategories();
 
     const squareCategories: NavCategory[] = objects
-      .filter(
-        (obj: SquareCatalogCategory): obj is SquareCatalogCategory =>
-          obj.type === "CATEGORY" && !!obj.categoryData
-      )
-      .filter((cat) => {
-        // Subcategories always pass through
-        if (cat.categoryData.parentCategoryId) return true;
-        // Top-level categories must be in the allowlist
-        return ALLOWED_CATEGORY_IDS.includes(cat.id);
-      })
       .filter(isTopLevelCategory)
       .map(mapSquareCategoryToNavCategory);
 

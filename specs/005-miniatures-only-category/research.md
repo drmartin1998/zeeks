@@ -32,7 +32,7 @@
 
 **Decision**: Subcategory logic remains unchanged.
 
-**Rationale**: The subcategory filtering feature (spec `subcategory-filtering`) runs AFTER top-level category resolution. Since `fetchAllCategories()` returns ALL categories (including subcategories) and only the top-level filter is added, subcategories of allowlisted categories continue to work correctly via their `parentCategoryId` matching. The `isTopLevelCategory()` check is applied separately at each consumer, so subcategories are never surfaced as top-level nav items.
+**Rationale**: The subcategory filtering feature (spec `subcategory-filtering`) runs AFTER top-level category resolution. Since `fetchAllCategories()` returns ALL categories (including subcategories) and only the top-level filter is added, subcategories of allowlisted categories continue to work correctly via their `parentCategory.id` matching. The `isTopLevelCategory()` check is applied separately at each consumer, so subcategories are never surfaced as top-level nav items.
 
 ## 5. Test Strategy
 

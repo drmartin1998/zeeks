@@ -30,8 +30,26 @@ export function normalizePrice(
   return Number(amountInSmallestUnit) / 100;
 }
 
-/** Fetch ALL Square catalog categories (top-level + subcategories) in one call. */
-async function fetchAllCategories(): Promise<SquareCatalogCategory[]> {
+/**
+ * Fetch ALL Square catalog categories (top-level + subcategories) in one call.
+ *
+ * Filters applied centrally (all consumers inherit automatically):
+ * 1. Channel filter — only categories in SQUARE_CHANNEL_ID
+ * 2. Allowlist filter — subcategories pass through; top-level must be in ALLOWED_CATEGORY_IDS
+ *
+ * Centralization: getNavCategories(), getSquareCategoryBySlug(),
+ * getSquareSubcategories(), and getSquareProductsByCategorySlug() all
+ * call this function and receive channel-filtered data automatically.
+ */
+export async function fetchAllCategories(): Promise<SquareCatalogCategory[]> {
+  const channelId = process.env.SQUARE_CHANNEL_ID;
+  if (!channelId) {
+    console.warn(
+      "SQUARE_CHANNEL_ID not configured; no categories will be returned"
+    );
+    return [];
+  }
+
   const response = await catalogApi.search({
     objectTypes: ["CATEGORY"],
     includeDeletedObjects: false,
@@ -44,8 +62,17 @@ async function fetchAllCategories(): Promise<SquareCatalogCategory[]> {
         cat.type === "CATEGORY" && !!cat.categoryData
     )
     .filter((cat) => {
+      // Channel filter: only categories assigned to the target channel
+      const channels = cat.categoryData.channels ?? [];
+      return channels.includes(channelId);
+    })
+    .filter((cat) => {
+      // Online visibility filter: exclude categories not visible online
+      return cat.categoryData.onlineVisibility !== false;
+    })
+    .filter((cat) => {
       // Subcategories always pass through (filtered at consumer level via isTopLevelCategory)
-      if (cat.categoryData.parentCategoryId) return true;
+      if (cat.categoryData.parentCategory?.id) return true;
       // Top-level categories must be in the allowlist
       return ALLOWED_CATEGORY_IDS.includes(cat.id);
     });
@@ -171,18 +198,22 @@ export async function getSquareSubcategories(
 
     const parentId = parent.id;
 
-    // Find children whose parentCategoryId matches
+    // Find children whose parentCategory.id matches
     return allCats
       .filter(
         (cat) =>
           !isTopLevelCategory(cat) &&
-          cat.categoryData.parentCategoryId === parentId
+          cat.categoryData.parentCategory?.id === parentId
       )
       .map((cat) => ({
         id: cat.id,
         name: cat.categoryData.name,
         slug: slugify(cat.categoryData.name),
-      }));
+      }))
+      .filter(
+        // Deduplicate by slug (Square may have duplicate subcategory names)
+        (sub, index, arr) => arr.findIndex((s) => s.slug === sub.slug) === index
+      );
   } catch {
     return [];
   }
@@ -225,7 +256,7 @@ export async function getSquareProductsByCategorySlug(
     for (const cat of allCats) {
       if (
         !isTopLevelCategory(cat) &&
-        cat.categoryData.parentCategoryId === parentId
+        cat.categoryData.parentCategory?.id === parentId
       ) {
         subCategoryMap.set(cat.id, {
           id: cat.id,

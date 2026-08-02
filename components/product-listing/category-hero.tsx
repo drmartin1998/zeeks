@@ -24,7 +24,7 @@ export function CategoryHero({
       <div className="absolute inset-0 bg-neutral-900/60" />
 
       {/* Content */}
-      <div className="relative z-10 flex w-full flex-col items-center gap-3 px-5 py-10 lg:px-20">
+      <div className="relative z-10 mx-auto flex w-full max-w-[1440px] flex-col items-start gap-3 px-4 py-[60px] md:px-8 lg:px-20">
         {/* Breadcrumbs */}
         <nav
           className="flex items-center gap-2"
@@ -55,7 +55,7 @@ export function CategoryHero({
         </h1>
 
         {/* Subtitle */}
-        <p className="max-w-xl text-center text-[15px] leading-relaxed text-white/80">
+        <p className="max-w-xl text-left text-[18px] leading-relaxed text-white/80">
           {description}
         </p>
       </div>

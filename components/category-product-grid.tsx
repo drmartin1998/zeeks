@@ -67,6 +67,7 @@ export function CategoryProductGrid({ products, subCategories }: Props) {
         <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={() => handleChipClick(null)}
+            aria-pressed={activeSub === null}
             className={`inline-flex h-[35px] items-center rounded-md px-4 text-[13px] font-semibold transition-colors ${
               activeSub === null
                 ? "bg-action-secondary text-white"
@@ -79,6 +80,7 @@ export function CategoryProductGrid({ products, subCategories }: Props) {
             <button
               key={sub.id}
               onClick={() => handleChipClick(sub.slug)}
+              aria-pressed={activeSub === sub.slug}
               className={`inline-flex h-[35px] items-center rounded-md px-4 text-[13px] font-semibold transition-colors ${
                 activeSub === sub.slug
                   ? "bg-action-secondary text-white"

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { catalogApi, locationId } from "@/lib/square/client";
 import {
-  type SquareCatalogCategory,
   isTopLevelCategory,
   SearchParamsSchema,
   ProductSchema,
@@ -9,30 +8,8 @@ import {
 } from "@/lib/square/types";
 import { apiSuccess, apiNotFound, apiServerError } from "@/lib/api-helpers";
 import { withRetry } from "@/lib/utils";
-import { slugify, normalizePrice } from "@/lib/square/catalog";
+import { slugify, normalizePrice, fetchAllCategories } from "@/lib/square/catalog";
 import type { CatalogObject } from "square";
-
-/** Square category IDs that are allowed as top-level categories. */
-const ALLOWED_CATEGORY_IDS: string[] = [
-  "ZCZJWQX6WREDLATZFW3U7OCJ", // Miniatures
-  "62G7JSXJDS4U574NW4XS4WKV", // Hobby Supplies
-];
-
-/** Fetch ALL Square catalog categories (top-level + subcategories) with retry. */
-async function fetchAllCategories(): Promise<SquareCatalogCategory[]> {
-  const response = await withRetry(() =>
-    catalogApi.search({
-      objectTypes: ["CATEGORY"],
-      includeDeletedObjects: false,
-    })
-  );
-  const objects =
-    (response as unknown as { objects?: SquareCatalogCategory[] }).objects ?? [];
-  return objects.filter(
-    (cat: SquareCatalogCategory): cat is SquareCatalogCategory =>
-      cat.type === "CATEGORY" && !!cat.categoryData
-  );
-}
 
 export async function GET(
   request: NextRequest
@@ -56,11 +33,12 @@ export async function GET(
     const { slug } = parsed.data;
 
     // ── Resolve slug → parent category + subcategories ──────────────
-    const allCats = await withRetry(fetchAllCategories);
+    // Delegates channel filter + online visibility + allowlist to the
+    // shared fetchAllCategories() — no duplicated filter logic here.
+    const allCats = await withRetry(() => fetchAllCategories());
 
     const parent = allCats
       .filter(isTopLevelCategory)
-      .filter((cat) => ALLOWED_CATEGORY_IDS.includes(cat.id))
       .find((cat) => slugify(cat.categoryData.name) === slug);
 
     if (!parent) {
@@ -78,7 +56,7 @@ export async function GET(
     for (const cat of allCats) {
       if (
         !isTopLevelCategory(cat) &&
-        cat.categoryData.parentCategoryId === parentId
+        cat.categoryData.parentCategory?.id === parentId
       ) {
         subCategoryMap.set(cat.id, {
           id: cat.id,

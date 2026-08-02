@@ -28,14 +28,15 @@ describe("getSquareProductsByCategorySlug pagination", () => {
         {
           id: MINIATURES_ID,
           type: "CATEGORY" as const,
-          categoryData: { name: "Miniatures" },
+          categoryData: { name: "Miniatures", channels: ["TEST_CHANNEL"] },
         },
         {
           id: "SUB1",
           type: "CATEGORY" as const,
           categoryData: {
             name: "Warhammer 40K",
-            parentCategoryId: MINIATURES_ID,
+            parentCategory: { id: MINIATURES_ID },
+            channels: ["TEST_CHANNEL"],
           },
         },
       ],
@@ -137,7 +138,7 @@ describe("getSquareProductsByCategorySlug pagination", () => {
         {
           id: "NON_ALLOWLISTED",
           type: "CATEGORY" as const,
-          categoryData: { name: "Board Games" },
+          categoryData: { name: "Board Games", channels: ["TEST_CHANNEL"] },
         },
       ],
     });
@@ -158,7 +159,7 @@ describe("getSquareProductsByCategorySlug pagination", () => {
         {
           id: MINIATURES_ID,
           type: "CATEGORY" as const,
-          categoryData: { name: "Miniatures" },
+          categoryData: { name: "Miniatures", channels: ["TEST_CHANNEL"] },
         },
       ],
     });
@@ -181,4 +182,222 @@ describe("getSquareProductsByCategorySlug pagination", () => {
     const products = await getSquareProductsByCategorySlug("miniatures");
     expect(products).toBeNull();
   });
+
+  // -------------------------------------------------------------------------
+  // Channel filter tests (US1)
+  // -------------------------------------------------------------------------
+
+  it("should exclude categories not in the configured channel", async () => {
+    const { getSquareCategories } = await import("@/lib/square/catalog");
+
+    const mockSearch = vi.fn().mockResolvedValue({
+      objects: [
+        {
+          id: MINIATURES_ID,
+          type: "CATEGORY" as const,
+          categoryData: { name: "Miniatures", channels: ["TEST_CHANNEL"] },
+        },
+        {
+          id: "OTHER_CAT",
+          type: "CATEGORY" as const,
+          categoryData: { name: "Other Category", channels: ["OTHER_CHANNEL"] },
+        },
+        {
+          id: "SUB_IN_CHANNEL",
+          type: "CATEGORY" as const,
+          categoryData: {
+            name: "Sub In Channel",
+            parentCategory: { id: MINIATURES_ID },
+            channels: ["TEST_CHANNEL"],
+          },
+        },
+      ],
+    });
+
+    vi.mocked(
+      (await import("@/lib/square/client")).catalogApi.search
+    ).mockImplementation(mockSearch);
+
+    const categories = await getSquareCategories();
+    expect(categories).toHaveLength(1);
+    expect(categories[0].title).toBe("Miniatures");
+  });
+
+  it("should return empty array when SQUARE_CHANNEL_ID is not configured", async () => {
+    const originalChannelId = process.env.SQUARE_CHANNEL_ID;
+    delete process.env.SQUARE_CHANNEL_ID;
+
+    const { getSquareCategories } = await import("@/lib/square/catalog");
+
+    const mockSearch = vi.fn();
+    vi.mocked(
+      (await import("@/lib/square/client")).catalogApi.search
+    ).mockImplementation(mockSearch);
+
+    const categories = await getSquareCategories();
+    expect(categories).toEqual([]);
+    expect(mockSearch).not.toHaveBeenCalled();
+
+    process.env.SQUARE_CHANNEL_ID = originalChannelId;
+  });
+
+  it("should exclude categories with empty channels array", async () => {
+    const { getSquareCategories } = await import("@/lib/square/catalog");
+
+    const mockSearch = vi.fn().mockResolvedValue({
+      objects: [
+        {
+          id: MINIATURES_ID,
+          type: "CATEGORY" as const,
+          categoryData: { name: "Miniatures", channels: ["TEST_CHANNEL"] },
+        },
+        {
+          id: "EMPTY_CHANNELS",
+          type: "CATEGORY" as const,
+          categoryData: { name: "Empty Channels", channels: [] },
+        },
+      ],
+    });
+
+    vi.mocked(
+      (await import("@/lib/square/client")).catalogApi.search
+    ).mockImplementation(mockSearch);
+
+    const categories = await getSquareCategories();
+    expect(categories).toHaveLength(1);
+    expect(categories[0].title).toBe("Miniatures");
+  });
 });
+
+  // -------------------------------------------------------------------------
+  // Subcategory inheritance tests (US2)
+  // -------------------------------------------------------------------------
+
+  it("should return subcategories only for channel-eligible parents", async () => {
+    const { getSquareSubcategories } = await import("@/lib/square/catalog");
+
+    const mockSearch = vi.fn().mockResolvedValue({
+      objects: [
+        // Parent in channel
+        {
+          id: MINIATURES_ID,
+          type: "CATEGORY" as const,
+          categoryData: { name: "Miniatures", channels: ["TEST_CHANNEL"] },
+        },
+        // Subcategory of channel-eligible parent
+        {
+          id: "SUB_IN_CHANNEL",
+          type: "CATEGORY" as const,
+          categoryData: {
+            name: "Games Workshop",
+            parentCategory: { id: MINIATURES_ID },
+            channels: ["TEST_CHANNEL"],
+          },
+        },
+        // Parent NOT in channel
+        {
+          id: "EXCLUDED_PARENT",
+          type: "CATEGORY" as const,
+          categoryData: { name: "Excluded Parent", channels: ["OTHER_CHANNEL"] },
+        },
+        // Subcategory of excluded parent (should not appear)
+        {
+          id: "SUB_EXCLUDED",
+          type: "CATEGORY" as const,
+          categoryData: {
+            name: "Excluded Sub",
+            parentCategory: { id: "EXCLUDED_PARENT" },
+            channels: ["TEST_CHANNEL"],
+          },
+        },
+      ],
+    });
+
+    vi.mocked(
+      (await import("@/lib/square/client")).catalogApi.search
+    ).mockImplementation(mockSearch);
+
+    const subCategories = await getSquareSubcategories("miniatures");
+    expect(subCategories).toHaveLength(1);
+    expect(subCategories[0].name).toBe("Games Workshop");
+
+    // Excluded parent should not match
+    const excludedSubs = await getSquareSubcategories("excluded-parent");
+    expect(excludedSubs).toEqual([]);
+  });
+
+  // -------------------------------------------------------------------------
+  // Centralization tests (US3)
+  // -------------------------------------------------------------------------
+
+  it("should return channel-filtered data when called by any consumer without additional filter logic", async () => {
+    const { fetchAllCategories } = await import("@/lib/square/catalog");
+
+    const mockSearch = vi.fn().mockResolvedValue({
+      objects: [
+        {
+          id: MINIATURES_ID,
+          type: "CATEGORY" as const,
+          categoryData: {
+            name: "Miniatures",
+            channels: ["TEST_CHANNEL"],
+          },
+        },
+        {
+          id: "OTHER",
+          type: "CATEGORY" as const,
+          categoryData: {
+            name: "Excluded",
+            channels: ["OTHER_CHANNEL"],
+          },
+        },
+      ],
+    });
+
+    vi.mocked(
+      (await import("@/lib/square/client")).catalogApi.search
+    ).mockImplementation(mockSearch);
+
+    // Simulate a "new consumer" — just call fetchAllCategories() directly.
+    // It should return channel-filtered results without any additional filtering.
+    const result = await fetchAllCategories();
+
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe(MINIATURES_ID);
+  });
+
+  it("should automatically exclude subcategories of channel-ineligible parents", async () => {
+    const { fetchAllCategories } = await import("@/lib/square/catalog");
+
+    const mockSearch = vi.fn().mockResolvedValue({
+      objects: [
+        {
+          id: MINIATURES_ID,
+          type: "CATEGORY" as const,
+          categoryData: {
+            name: "Miniatures",
+            channels: ["TEST_CHANNEL"],
+          },
+        },
+        {
+          id: "SUB_INELIGIBLE",
+          type: "CATEGORY" as const,
+          categoryData: {
+            name: "Excluded Sub",
+            parentCategory: { id: MINIATURES_ID },
+            channels: [], // empty channels = excluded
+          },
+        },
+      ],
+    });
+
+    vi.mocked(
+      (await import("@/lib/square/client")).catalogApi.search
+    ).mockImplementation(mockSearch);
+
+    const result = await fetchAllCategories();
+
+    // Only the parent with channels should be returned
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe(MINIATURES_ID);
+  });

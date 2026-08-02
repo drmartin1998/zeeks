@@ -41,7 +41,7 @@ As a customer, when I navigate to `/categories/miniatures` or `/categories/hobby
 1. **Given** the Miniatures category exists in Square, **When** a user visits `/categories/miniatures`, **Then** the Miniatures product listing page renders with its products and subcategories.
 2. **Given** the Hobby Supplies category exists in Square, **When** a user visits `/categories/hobby-supplies`, **Then** the Hobby Supplies product listing page renders with its products and subcategories.
 3. **Given** a non-allowlisted top-level category (e.g., "Board Games") exists in Square but is excluded by the filter, **When** a user visits `/categories/board-games`, **Then** a 404 page or "category not found" message is displayed.
-4. **Given** the Miniatures category has subcategories (e.g., "Warhammer 40K"), **When** a user visits `/categories/miniatures`, **Then** subcategory filter chips are displayed for those subcategories.
+4. **Given** the Miniatures category has subcategories (e.g., "Games Workshop"), **When** a user visits `/categories/miniatures`, **Then** the Category dropdown filter displays those subcategories as selectable options.
 
 ---
 
@@ -80,7 +80,7 @@ As a developer integrating with the front-end, I want the categories API endpoin
 
 ### Key Entities *(include if feature involves data)*
 
-- **SquareCatalogCategory**: An object from the Square Catalog API representing a category. Key attributes: `id`, `categoryData.name`, `categoryData.parentCategoryId`. The filter operates on the `id` field, matching against the allowlisted category IDs (`ZCZJWQX6WREDLATZFW3U7OCJ` for Miniatures and `62G7JSXJDS4U574NW4XS4WKV` for Hobby Supplies).
+- **SquareCatalogCategory**: An object from the Square Catalog API representing a category. Key attributes: `id`, `categoryData.name`, `categoryData.parentCategory.id`. The filter operates on the `id` field, matching against the allowlisted category IDs (`ZCZJWQX6WREDLATZFW3U7OCJ` for Miniatures and `62G7JSXJDS4U574NW4XS4WKV` for Hobby Supplies).
 - **NavCategory**: Internal representation used by the navigation bar. Derived from `SquareCatalogCategory` via `mapSquareCategoryToNavCategory()`.
 
 ## Success Criteria *(mandatory)*

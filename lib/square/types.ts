@@ -18,10 +18,17 @@ export interface SquareCatalogCategory {
   type: "CATEGORY";
   categoryData: {
     name: string;
-    /** Indicates if the category is top-level (no parent) */
-    parentCategoryId?: string;
+    /** Nested parent reference from Square API: { id?: string, ordinal?: number } */
+    parentCategory?: {
+      id?: string;
+      ordinal?: number;
+    };
     /** Whether the category is visible online */
     isTopLevel?: boolean;
+    /** Channel IDs this category is assigned to in Square */
+    channels?: string[];
+    /** Whether this category is visible online (Square e-commerce setting) */
+    onlineVisibility?: boolean;
   };
 }
 
@@ -44,8 +51,8 @@ export function isTopLevelCategory(sqCat: SquareCatalogCategory): boolean {
   if (typeof sqCat.categoryData.isTopLevel === "boolean") {
     return sqCat.categoryData.isTopLevel;
   }
-  // Fall back: top-level = no parent
-  const pid = sqCat.categoryData.parentCategoryId;
+  // Fall back: top-level = no parent id
+  const pid = sqCat.categoryData.parentCategory?.id;
   return pid === undefined || pid === null || pid === "";
 }
 
@@ -78,7 +85,12 @@ export const CatalogCategorySchema = z.object({
   type: z.literal("CATEGORY"),
   categoryData: z.object({
     name: z.string().min(1),
-    parentCategoryId: z.string().optional(),
+    parentCategory: z
+      .object({
+        id: z.string().optional(),
+        ordinal: z.number().optional(),
+      })
+      .optional(),
     isTopLevel: z.boolean().optional(),
   }),
 });

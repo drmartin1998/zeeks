@@ -67,28 +67,32 @@ export function ProductListingPage({
   // Apply pagination
   const totalPages = Math.max(1, Math.ceil(sortedProducts.length / ITEMS_PER_PAGE));
   const safePage = Math.min(currentPage, totalPages);
+  const startIndex = (safePage - 1) * ITEMS_PER_PAGE;
   const paginatedProducts = sortedProducts.slice(
-    (safePage - 1) * ITEMS_PER_PAGE,
+    startIndex,
     safePage * ITEMS_PER_PAGE
   );
+  const showingStart = sortedProducts.length === 0 ? 0 : startIndex + 1;
+  const showingEnd = Math.min(startIndex + paginatedProducts.length, sortedProducts.length);
 
   const handleFilterToggle = (filter: string) => {
     if (filter === "__all__") {
       setActiveFilters([]);
       router.push("?", { scroll: false });
     } else {
-      setActiveFilters((prev) => {
-        const next = prev.includes(filter)
-          ? prev.filter((f) => f !== filter)
-          : [...prev, filter];
-        // Update URL with comma-separated active filters
-        if (next.length > 0) {
-          router.push(`?sub=${next.join(",")}`, { scroll: false });
-        } else {
-          router.push("?", { scroll: false });
-        }
-        return next;
-      });
+      // Compute next value OUTSIDE the setState updater so router.push
+      // is NOT called during React's render phase (avoids "Cannot update
+      // a component while rendering a different component").
+      const next = activeFilters.includes(filter)
+        ? activeFilters.filter((f) => f !== filter)
+        : [...activeFilters, filter];
+      setActiveFilters(next);
+      // Update URL with comma-separated active filters
+      if (next.length > 0) {
+        router.push(`?sub=${next.join(",")}`, { scroll: false });
+      } else {
+        router.push("?", { scroll: false });
+      }
     }
     setCurrentPage(1);
   };
@@ -114,7 +118,8 @@ export function ProductListingPage({
         />
         <FilterBar
           totalResults={filteredProducts.length}
-          showingCount={paginatedProducts.length}
+          showingStart={showingStart}
+          showingEnd={showingEnd}
           activeFilters={activeFilters}
           currentSort={currentSort}
           onFilterToggle={handleFilterToggle}

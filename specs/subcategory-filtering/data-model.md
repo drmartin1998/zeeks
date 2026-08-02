@@ -21,7 +21,7 @@ interface SquareSubCategory {
   slug: string;         // "strategy", "family"
 }
 ```
-**Source**: Same catalog API call → filtered by `parentCategoryId === parent.id` and `!isTopLevelCategory()`
+**Source**: Same catalog API call → filtered by `parentCategory.id === parent.id` and `!isTopLevelCategory()`
 
 ### SquareProduct (Item)
 ```
@@ -77,7 +77,7 @@ Page Request (/categories/:slug)
 ```
 SquareCategory (top-level)
     │
-    │ 1:N (via parentCategoryId)
+    │ 1:N (via parentCategory.id)
     ▼
 SquareSubCategory (child)
     │

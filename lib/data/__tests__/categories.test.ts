@@ -39,7 +39,7 @@ describe("getNavCategories error handling", () => {
         {
           id: "ZCZJWQX6WREDLATZFW3U7OCJ",
           type: "CATEGORY" as const,
-          categoryData: { name: "Miniatures" },
+          categoryData: { name: "Miniatures", channels: ["TEST_CHANNEL"] },
         },
       ],
     });

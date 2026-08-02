@@ -32,7 +32,7 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [x] T004 Verify `getSquareSubcategories()` in `lib/square/catalog.ts` resolves children by parentCategoryId
+- [x] T004 Verify `getSquareSubcategories()` in `lib/square/catalog.ts` resolves children by parentCategory.id
 - [x] T005 [P] Verify `getSquareProductsByCategorySlug()` in `lib/square/catalog.ts` annotates products with subCategory/subCategorySlug
 - [x] T006 [P] Verify `CategoryProductGrid` in `components/category-product-grid.tsx` renders filter chips from SquareSubCategory[] AND shows subcategory association in card labels (FR-006: "Parent — Subcategory" format)
 - [x] T007 [P] Verify `FilterBar` in `components/product-listing/filter-bar.tsx` renders subcategory chips when subCategories prop provided

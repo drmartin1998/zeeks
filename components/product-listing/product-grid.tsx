@@ -20,7 +20,7 @@ export function ProductGrid({ products }: ProductGridProps) {
   }
 
   return (
-    <section className="w-full px-5 pt-12 pb-6 lg:px-20">
+    <section className="mx-auto w-full max-w-[1440px] px-4 pt-12 pb-6 md:px-8 lg:px-20">
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {products.map((product) => (
           <GameCard

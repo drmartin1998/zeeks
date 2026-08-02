@@ -26,12 +26,12 @@ describe("GET /api/catalog/categories", () => {
         {
           id: "ZCZJWQX6WREDLATZFW3U7OCJ",
           type: "CATEGORY",
-          categoryData: { name: "Miniatures" },
+          categoryData: { channels: ["TEST_CHANNEL"], name: "Miniatures" },
         },
         {
           id: "62G7JSXJDS4U574NW4XS4WKV",
           type: "CATEGORY",
-          categoryData: { name: "Hobby Supplies" },
+          categoryData: { channels: ["TEST_CHANNEL"], name: "Hobby Supplies" },
         },
       ],
     });
@@ -79,34 +79,36 @@ describe("GET /api/catalog/categories", () => {
     expect(data).toHaveProperty("error", "Network Error");
   });
 
-  it("should exclude sub-categories that have a parentCategoryId", async () => {
+  it("should exclude sub-categories that have a parentCategory", async () => {
     const MINIATURES_ID = "ZCZJWQX6WREDLATZFW3U7OCJ";
     mockSearch.mockResolvedValueOnce({
       objects: [
         {
           id: MINIATURES_ID,
           type: "CATEGORY",
-          categoryData: { name: "Miniatures" },
+          categoryData: { channels: ["TEST_CHANNEL"], name: "Miniatures" },
         },
         {
           id: "SUB1",
           type: "CATEGORY",
           categoryData: {
             name: "Warhammer 40K",
-            parentCategoryId: MINIATURES_ID,
+            channels: ["TEST_CHANNEL"],
+            parentCategory: { id: MINIATURES_ID },
           },
         },
         {
           id: "62G7JSXJDS4U574NW4XS4WKV",
           type: "CATEGORY",
-          categoryData: { name: "Hobby Supplies" },
+          categoryData: { channels: ["TEST_CHANNEL"], name: "Hobby Supplies" },
         },
         {
           id: "SUB2",
           type: "CATEGORY",
           categoryData: {
             name: "Paints",
-            parentCategoryId: "62G7JSXJDS4U574NW4XS4WKV",
+            channels: ["TEST_CHANNEL"],
+            parentCategory: { id: "62G7JSXJDS4U574NW4XS4WKV" },
           },
         },
       ],
@@ -116,7 +118,7 @@ describe("GET /api/catalog/categories", () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    // Only top-level categories (no parentCategoryId) should be returned
+    // Only top-level categories (no parentCategory.id) should be returned
     expect(data).toHaveLength(2);
     expect(data.map((c: { label: string }) => c.label)).toEqual([
       "Miniatures",
@@ -130,7 +132,7 @@ describe("GET /api/catalog/categories", () => {
         {
           id: "ZCZJWQX6WREDLATZFW3U7OCJ",
           type: "CATEGORY",
-          categoryData: { name: "Miniatures" },
+          categoryData: { channels: ["TEST_CHANNEL"], name: "Miniatures" },
         },
         {
           id: "ITEM1",
@@ -140,7 +142,7 @@ describe("GET /api/catalog/categories", () => {
         {
           id: "62G7JSXJDS4U574NW4XS4WKV",
           type: "CATEGORY",
-          categoryData: { name: "Hobby Supplies" },
+          categoryData: { channels: ["TEST_CHANNEL"], name: "Hobby Supplies" },
         },
       ],
     });

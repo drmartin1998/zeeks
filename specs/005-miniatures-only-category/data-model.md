@@ -17,7 +17,7 @@ Source: Square Catalog API → `lib/square/types.ts`
 | `id` | `string` | Square category ID (used for allowlist matching) |
 | `type` | `"CATEGORY"` | Literal type discriminator |
 | `categoryData.name` | `string` | Display name |
-| `categoryData.parentCategoryId` | `string \| undefined` | Parent category ID (undefined/null/empty = top-level) |
+| `categoryData.parentCategory.id` | `string \| undefined` | Parent category ID (undefined/null/empty = top-level) |
 | `categoryData.isTopLevel` | `boolean \| undefined` | Square's explicit top-level flag |
 
 ### NavCategory
@@ -71,5 +71,5 @@ SquareCatalogCategory[] (allowlisted only)
 ## Validation Rules
 
 - A category MUST have an `id` that matches one of the `ALLOWED_CATEGORY_IDS` to be returned as a top-level category.
-- Subcategories (categories with `parentCategoryId`) are NOT filtered by the allowlist — they pass through and are handled by `isTopLevelCategory()` at each consumer.
+- Subcategories (categories with `parentCategory.id`) are NOT filtered by the allowlist — they pass through and are handled by `isTopLevelCategory()` at each consumer.
 - If no allowlisted categories exist in the Square response, an empty array is returned (no error).

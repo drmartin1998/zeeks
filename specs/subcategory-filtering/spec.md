@@ -107,7 +107,7 @@ As a platform operator, when the Square API is unreachable, I want the applicati
 ### Key Entities
 
 - **SquareCategory**: Top-level Square Catalog category (title, slug, image, href).
-- **SquareSubCategory**: Child category (id, name, slug) identified by parentCategoryId.
+- **SquareSubCategory**: Child category (id, name, slug) identified by parentCategory.id.
 - **SquareProduct**: Item from Square Catalog with title, category, categorySlug, optional subCategory/subCategorySlug, price, image, gradient.
 - **NavCategory**: Navigation link (label, href, optional highlight).
 
@@ -123,9 +123,9 @@ As a platform operator, when the Square API is unreachable, I want the applicati
 
 ## Assumptions
 
-- Square Catalog categories have parent-child hierarchy via `parentCategoryId`.
+- Square Catalog categories have parent-child hierarchy via `parentCategory.id`.
 - Square items are tagged with category IDs in `itemData.categories` array.
 - Square API `searchItems` accepts multiple `categoryIds` in a single request.
 - Subcategories are Square-managed, not hardcoded.
 - "Sale" and "New Arrivals" nav items are static application links.
-- Existing `FilterBar` component can be extended for dynamic subcategory chips.
+- Existing `FilterBar` component uses the `Dropdown` component for dynamic subcategory filtering via the Category dropdown.

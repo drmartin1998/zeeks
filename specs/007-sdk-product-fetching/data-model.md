@@ -14,7 +14,7 @@ Represents a Square catalog category object as received from the SDK.
 | `id` | `string` | SDK | Non-empty |
 | `type` | `"CATEGORY"` literal | SDK | Must be `"CATEGORY"` |
 | `categoryData.name` | `string` | SDK | Non-empty |
-| `categoryData.parentCategoryId` | `string \| undefined` | SDK | Optional; presence indicates subcategory |
+| `categoryData.parentCategory.id` | `string \| undefined` | SDK | Optional; presence indicates subcategory |
 | `categoryData.isTopLevel` | `boolean \| undefined` | SDK | Optional Square flag |
 
 ### 2. CatalogItem (Square Raw)

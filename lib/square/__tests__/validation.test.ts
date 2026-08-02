@@ -22,11 +22,11 @@ describe("CatalogCategorySchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("should validate a subcategory with parentCategoryId", () => {
+  it("should validate a subcategory with parentCategory", () => {
     const result = CatalogCategorySchema.safeParse({
       id: "SUB456",
       type: "CATEGORY",
-      categoryData: { name: "Warhammer 40K", parentCategoryId: "CAT123" },
+      categoryData: { name: "Warhammer 40K", parentCategory: { id: "CAT123" } },
     });
     expect(result.success).toBe(true);
   });
