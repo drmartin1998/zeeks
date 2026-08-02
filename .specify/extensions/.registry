@@ -14,6 +14,20 @@
       },
       "registered_skills": [],
       "installed_at": "2026-07-12T14:56:27.291506+00:00"
+    },
+    "git": {
+      "version": "1.0.0",
+      "source": "local",
+      "manifest_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "claude": [
+          "speckit.git.create-branch"
+        ]
+      },
+      "registered_skills": [],
+      "installed_at": "2026-08-02T18:30:00.000000+00:00"
     }
   }
 }

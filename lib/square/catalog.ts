@@ -565,3 +565,63 @@ export async function getProductDetailBySlug(
     return null;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Product Search
+// ---------------------------------------------------------------------------
+
+/**
+ * Search Square catalog products by text query.
+ * Returns DisplayProduct[] suitable for product listing pages.
+ */
+export async function searchProductsByQuery(
+  q: string
+): Promise<import("@/lib/square/types").DisplayProduct[]> {
+  if (!q || q.trim().length === 0) return [];
+
+  try {
+    const result = await catalogApi.searchItems({
+      textFilter: q.trim(),
+      enabledLocationIds: [locationId],
+      limit: 100,
+    });
+
+    const items = result.items ?? [];
+
+    return items
+      .filter(
+        (item): item is CatalogObject.Item =>
+          item.type === "ITEM" &&
+          !!(item as unknown as Record<string, unknown>).itemData
+      )
+      .map((item) => {
+        const raw = item as unknown as Record<string, unknown>;
+        const itemData = raw.itemData as Record<string, unknown> | undefined;
+        const name = (itemData?.name as string) ?? "Untitled";
+        const variations =
+          (itemData?.variations as Record<string, unknown>[]) ?? [];
+        const firstVariation = variations[0];
+        const varData = firstVariation?.itemVariationData as
+          | Record<string, unknown>
+          | undefined;
+        const priceMoney = varData?.priceMoney as
+          | { amount?: bigint; currency?: string }
+          | undefined;
+
+        return {
+          slug: slugify(name),
+          title: name,
+          category: "Search Results",
+          price: normalizePrice(priceMoney?.amount),
+          image: undefined,
+          gradient: "from-zeeks-purple to-zeeks-purple-dark",
+        };
+      });
+  } catch (error) {
+    console.error(
+      "[searchProductsByQuery] Error:",
+      error instanceof Error ? error.message : error
+    );
+    return [];
+  }
+}
