@@ -271,3 +271,33 @@ export interface CategoryDisplayData {
   description: string;
   backgroundImage?: string;
 }
+
+// ---------------------------------------------------------------------------
+// Dashboard types (Customer Account Dashboard)
+// ---------------------------------------------------------------------------
+
+/** Customer profile displayed on the account dashboard. */
+export interface CustomerProfile {
+  id: string;
+  givenName: string | undefined;
+  familyName: string | undefined;
+  emailAddress: string | undefined;
+  phoneNumber: string | undefined;
+}
+
+/** Loyalty account summary for the points card. */
+export interface LoyaltySummary {
+  balance: number;
+  lifetimePoints: number;
+}
+
+/** Order summary for the orders table. */
+export interface OrderSummary {
+  id: string;
+  closedAt: string | undefined;
+  totalMoney: {
+    amount: bigint | null | undefined;
+    currency: string | undefined;
+  };
+  state: string;
+}
