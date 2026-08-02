@@ -42,6 +42,9 @@ yarn-error.log*
 # Cline CLI project config (may contain credentials in mcp.json)
 .cline/
 
+# opencode config (contains API keys / tokens)
+opencode.jsonc
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
