@@ -27,6 +27,7 @@ export function ProductGrid({ products }: ProductGridProps) {
             key={product.slug}
             title={product.title}
             category={product.category}
+            productSlug={product.slug}
             price={product.price}
             image={product.image}
             gradient={product.gradient}

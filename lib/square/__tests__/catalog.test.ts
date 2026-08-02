@@ -401,3 +401,34 @@ describe("getSquareProductsByCategorySlug pagination", () => {
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe(MINIATURES_ID);
   });
+
+// -------------------------------------------------------------------------
+// slugify unit tests (T007)
+// -------------------------------------------------------------------------
+
+describe("slugify", () => {
+  it("should lowercase and replace spaces with hyphens", async () => {
+    const { slugify } = await import("@/lib/square/catalog");
+    expect(slugify("Space Marines")).toBe("space-marines");
+  });
+
+  it("should handle special characters", async () => {
+    const { slugify } = await import("@/lib/square/catalog");
+    expect(slugify("Warhammer 40,000!")).toBe("warhammer-40-000");
+  });
+
+  it("should strip leading and trailing hyphens", async () => {
+    const { slugify } = await import("@/lib/square/catalog");
+    expect(slugify("- Special Offer -")).toBe("special-offer");
+  });
+
+  it("should handle empty string", async () => {
+    const { slugify } = await import("@/lib/square/catalog");
+    expect(slugify("")).toBe("");
+  });
+
+  it("should handle multiple consecutive non-alphanumeric characters", async () => {
+    const { slugify } = await import("@/lib/square/catalog");
+    expect(slugify("Red & Blue")).toBe("red-blue");
+  });
+});

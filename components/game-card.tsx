@@ -6,6 +6,7 @@ interface GameCardProps {
   title: string;
   category: string;
   categorySlug?: string;
+  productSlug?: string;
   price: number;
   image?: string;
   gradient?: string;
@@ -15,6 +16,7 @@ export function GameCard({
   title,
   category,
   categorySlug,
+  productSlug,
   price = 185.0,
   image,
   gradient = "from-zeeks-purple to-zeeks-purple-dark",
@@ -56,7 +58,7 @@ export function GameCard({
             </span>
           )}
           {/* Title as clickable link */}
-          <Link href="#" className="text-lg">
+          <Link href={productSlug ? `/products/${productSlug}` : "#"} className="text-lg">
             {title}
           </Link>
           {/* Price */}

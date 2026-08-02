@@ -333,3 +333,235 @@ export async function getSquareProductsByCategorySlug(
     return null;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Product Detail – slug-based lookup
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve a product slug to full product detail data.
+ *
+ * Strategy (viable for ~50 products):
+ * 1. Fetch all catalog items at the configured location via searchItems
+ * 2. Match by slugified item name
+ * 3. Retrieve full details (images, variations, categories) via batchGet
+ * 4. Resolve category breadcrumb and related products
+ *
+ * Returns null if no product matches the slug or the product is channel-excluded.
+ */
+export async function getProductDetailBySlug(
+  slug: string
+): Promise<import("@/lib/square/types").ProductDetail | null> {
+  const channelId = process.env.SQUARE_CHANNEL_ID;
+  if (!channelId) {
+    console.warn(
+      "SQUARE_CHANNEL_ID not configured; product detail unavailable"
+    );
+    return null;
+  }
+
+  try {
+    // Step 1: Fetch all catalog items via search (proven method from fetchAllCategories)
+    const searchResponse = await catalogApi.search({
+      objectTypes: ["ITEM"],
+      includeDeletedObjects: false,
+    });
+
+    const items =
+      (searchResponse as { objects?: CatalogObject[] }).objects ?? [];
+
+    // Step 2: Match by slugified name
+    const matched = items.find((item) => {
+      if (item.type !== "ITEM") return false;
+      const raw = item as unknown as Record<string, unknown>;
+      const itemData = raw.itemData as Record<string, unknown> | undefined;
+      const name = itemData?.name as string | undefined;
+      if (!name) return false;
+      return slugify(name) === slug;
+    });
+
+    if (!matched || !matched.id) return null;
+
+    const itemId: string = matched.id;
+
+    // Step 3: Retrieve full details with images
+    const detailResponse = await catalogApi.batchGet({
+      objectIds: [itemId],
+      includeRelatedObjects: true,
+    });
+
+    const objects = detailResponse.objects ?? [];
+    const relatedObjects = detailResponse.relatedObjects ?? [];
+    const obj = objects[0];
+
+    if (!obj || obj.type !== "ITEM") return null;
+
+    const raw = obj as unknown as Record<string, unknown>;
+    const itemData = raw.itemData as Record<string, unknown> | undefined;
+    if (!itemData) return null;
+
+    const title = (itemData.name as string | undefined) ?? "Untitled";
+    const description = itemData.description as string | undefined;
+    const variationsRaw =
+      (itemData.variations as Record<string, unknown>[]) ?? [];
+
+    // Resolve images from related objects
+    const imageIds = (itemData.imageIds as string[]) ?? [];
+    const images: string[] = [];
+    for (const relObj of relatedObjects) {
+      const relRaw = relObj as unknown as Record<string, unknown>;
+      if (
+        relObj.type === "IMAGE" &&
+        imageIds.includes(relObj.id) &&
+        relRaw.imageData
+      ) {
+        const imgData = relRaw.imageData as Record<string, unknown>;
+        const url = imgData.url as string | undefined;
+        if (url) images.push(url);
+      }
+    }
+
+    // Step 4: Resolve category breadcrumb
+    const categories =
+      (itemData.categories as { id?: string }[]) ?? [];
+    const primaryCategoryId = categories[0]?.id;
+
+    let categoryBreadcrumb = { name: "Uncategorized", slug: "uncategorized" };
+    let subCategoryBreadcrumb:
+      | { name: string; slug: string }
+      | undefined;
+
+    if (primaryCategoryId) {
+      const allCats = await fetchAllCategories();
+      const cat = allCats.find((c) => c.id === primaryCategoryId);
+      if (cat) {
+        categoryBreadcrumb = {
+          name: cat.categoryData.name,
+          slug: slugify(cat.categoryData.name),
+        };
+
+        if (cat.categoryData.parentCategory?.id) {
+          const parentCat = allCats.find(
+            (c) => c.id === cat.categoryData.parentCategory!.id
+          );
+          if (parentCat) {
+            subCategoryBreadcrumb = categoryBreadcrumb;
+            categoryBreadcrumb = {
+              name: parentCat.categoryData.name,
+              slug: slugify(parentCat.categoryData.name),
+            };
+          }
+        }
+      }
+    }
+
+    // Step 5: Build variations with inventory counts
+    const variations = variationsRaw.map((v) => {
+      const varData =
+        (v as Record<string, unknown>).itemVariationData as
+          | Record<string, unknown>
+          | undefined;
+      const varPriceMoney = varData?.priceMoney as
+        | { amount?: bigint; currency?: string }
+        | undefined;
+      const varLocationOverrides =
+        varData?.locationOverrides as Record<string, unknown>[] | undefined;
+      const locationOverride = varLocationOverrides?.[0];
+      return {
+        id: (v as Record<string, unknown>).id as string,
+        name: (varData?.name as string) ?? (v as Record<string, unknown>).id as string,
+        sku: varData?.sku as string | undefined,
+        price: normalizePrice(varPriceMoney?.amount),
+        imageUrl: undefined,
+        inventoryCount: locationOverride?.stockable
+          ? (locationOverride?.stockableQuantity as number | undefined)
+          : undefined,
+      };
+    });
+
+    // Step 6: Related products from same category
+    const relatedProducts: import("@/lib/square/types").Product[] = [];
+    if (primaryCategoryId) {
+      const relatedResponse = await catalogApi.searchItems({
+        categoryIds: [primaryCategoryId],
+        enabledLocationIds: [locationId],
+        limit: 5,
+      });
+      const relatedItems = relatedResponse.items ?? [];
+      for (const relItem of relatedItems) {
+        if (relItem.id === itemId) continue;
+        if (relItem.type !== "ITEM") continue;
+        const relRaw = relItem as unknown as Record<string, unknown>;
+        const relData = relRaw.itemData as Record<string, unknown> | undefined;
+        if (!relData) continue;
+        const relVariations =
+          (relData.variations as Record<string, unknown>[]) ?? [];
+        const relFirstVar = relVariations[0];
+        const relVarData = relFirstVar?.itemVariationData as
+          | Record<string, unknown>
+          | undefined;
+        const relPriceMoney = relVarData?.priceMoney as
+          | { amount?: bigint; currency?: string }
+          | undefined;
+        relatedProducts.push({
+          id: relItem.id,
+          title: (relData.name as string) ?? "Untitled",
+          description: relData.description as string | undefined,
+          category: categoryBreadcrumb.name,
+          categorySlug: categoryBreadcrumb.slug,
+          subCategory: subCategoryBreadcrumb?.name,
+          subCategorySlug: subCategoryBreadcrumb?.slug,
+          price: normalizePrice(relPriceMoney?.amount),
+          currency: (relPriceMoney?.currency as string) ?? "USD",
+          imageUrl: undefined,
+          gradient: "from-zeeks-purple to-zeeks-purple-dark",
+        });
+        if (relatedProducts.length >= 4) break;
+      }
+    }
+
+    // Determine inventory status from first variation
+    const firstVariation = variationsRaw[0];
+    const firstVarData = firstVariation?.itemVariationData as
+      | Record<string, unknown>
+      | undefined;
+    const locationOverrides =
+      firstVarData?.locationOverrides as Record<string, unknown>[] | undefined;
+    let inventoryStatus: import("@/lib/square/types").InventoryStatus =
+      "UNKNOWN";
+    if (locationOverrides && locationOverrides.length > 0) {
+      const override = locationOverrides[0];
+      const soldOut = override.soldOut as boolean | undefined;
+      inventoryStatus = soldOut ? "OUT_OF_STOCK" : "IN_STOCK";
+    }
+
+    const firstVarPriceMoney = firstVarData?.priceMoney as
+      | { amount?: bigint; currency?: string }
+      | undefined;
+
+    return {
+      id: itemId,
+      title,
+      slug,
+      description,
+      category: categoryBreadcrumb,
+      categorySlug: categoryBreadcrumb.slug,
+      subCategory: subCategoryBreadcrumb,
+      subCategorySlug: subCategoryBreadcrumb?.slug,
+      price: normalizePrice(firstVarPriceMoney?.amount),
+      currency: firstVarPriceMoney?.currency ?? "USD",
+      imageUrl: images[0],
+      gradient: "from-zeeks-purple to-zeeks-purple-dark",
+      images,
+      variations,
+      inventoryStatus,
+      relatedProducts,
+    };
+  } catch (error) {
+    console.error(
+      "[getProductDetailBySlug] Error resolving product:",
+      error instanceof Error ? error.message : error
+    );
+    return null;
+  }
+}

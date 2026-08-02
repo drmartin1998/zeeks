@@ -149,6 +149,60 @@ export const ProductSchema = z.object({
 /** Application-level product type inferred from the Zod schema. */
 export type Product = z.infer<typeof ProductSchema>;
 
+// ---------------------------------------------------------------------------
+// Product Detail Page types
+// ---------------------------------------------------------------------------
+
+/** A single product variation (e.g., size "Large", color "Red"). */
+export interface ProductVariation {
+  id: string;
+  name: string;
+  sku?: string;
+  price: number;
+  imageUrl?: string;
+  inventoryCount?: number;
+}
+
+/** Zod schema for product variation validation. */
+export const ProductVariationSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  sku: z.string().optional(),
+  price: z.number().min(0),
+  imageUrl: z.string().optional(),
+  inventoryCount: z.number().int().min(0).optional(),
+});
+
+/** Category breadcrumb segment. */
+export const CategoryBreadcrumbSchema = z.object({
+  name: z.string().min(1),
+  slug: z.string().min(1),
+});
+
+export type CategoryBreadcrumb = z.infer<typeof CategoryBreadcrumbSchema>;
+
+/** Inventory availability status. */
+export const InventoryStatusSchema = z.enum([
+  "IN_STOCK",
+  "OUT_OF_STOCK",
+  "UNKNOWN",
+]);
+
+export type InventoryStatus = z.infer<typeof InventoryStatusSchema>;
+
+/** Enriched product data for the product detail page. */
+export const ProductDetailSchema = ProductSchema.extend({
+  slug: z.string().min(1),
+  images: z.array(z.string()),
+  variations: z.array(ProductVariationSchema),
+  category: CategoryBreadcrumbSchema,
+  subCategory: CategoryBreadcrumbSchema.optional(),
+  inventoryStatus: InventoryStatusSchema,
+  relatedProducts: z.array(ProductSchema).default([]),
+});
+
+export type ProductDetail = z.infer<typeof ProductDetailSchema>;
+
 /** Validates query parameters for the products Route Handler. */
 export const SearchParamsSchema = z.object({
   slug: z.string().min(1),
