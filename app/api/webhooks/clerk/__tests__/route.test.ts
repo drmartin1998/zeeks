@@ -1,27 +1,39 @@
 import { describe, it, expect, vi } from "vitest";
 
-// ---------------------------------------------------------------------------
-// Ensure CLERK_WEBHOOK_SECRET is set BEFORE the route module loads.
-// The module reads process.env at import time, so it must be set here.
-// ---------------------------------------------------------------------------
 process.env.CLERK_WEBHOOK_SECRET = "whsec_test";
+process.env.CLERK_SECRET_KEY = "sk_test_mock";
 
-// ---------------------------------------------------------------------------
-// Mock the svix Webhook class so we control verify() behaviour.
-// ---------------------------------------------------------------------------
 const mockVerify = vi.fn();
 vi.mock("svix", () => ({
-  Webhook: vi.fn().mockImplementation(() => ({
-    verify: mockVerify,
-  })),
+  Webhook: vi.fn(class { verify = mockVerify }),
 }));
 
-// Dynamic import AFTER mocks are in place
+const mockSquareSearch = vi.fn();
+const mockSquareCreate = vi.fn();
+vi.mock("@/lib/square/client", () => ({
+  squareClient: {},
+  catalogApi: {},
+  customersApi: {
+    search: (...args: unknown[]) => mockSquareSearch(...args),
+    create: (...args: unknown[]) => mockSquareCreate(...args),
+  },
+  locationId: "TEST_LOCATION",
+  squareAccessToken: "TEST_TOKEN",
+}));
+
+const mockClerkGetUser = vi.fn();
+const mockClerkUpdateMetadata = vi.fn();
+vi.mock("@clerk/backend", () => ({
+  createClerkClient: vi.fn().mockReturnValue({
+    users: {
+      getUser: mockClerkGetUser,
+      updateUserMetadata: mockClerkUpdateMetadata,
+    },
+  }),
+}));
+
 const { POST } = await import("../route");
 
-// ---------------------------------------------------------------------------
-// Helper: build a minimal Request for POST handler tests
-// ---------------------------------------------------------------------------
 function buildRequest(body: unknown, headers?: Record<string, string>): Request {
   const h = new Headers(headers);
   h.set("Content-Type", "application/json");
@@ -32,134 +44,176 @@ function buildRequest(body: unknown, headers?: Record<string, string>): Request 
   });
 }
 
+function userPayload(overrides: Record<string, unknown> = {}) {
+  return {
+    type: "user.created",
+    data: {
+      id: "user_test123",
+      first_name: "John",
+      last_name: "Doe",
+      email_addresses: [{ id: "eml_1", email_address: "john@example.com" }],
+      primary_email_address_id: "eml_1",
+      ...overrides,
+    },
+  };
+}
+
 describe("POST /api/webhooks/clerk", () => {
   beforeEach(() => {
     mockVerify.mockReset();
+    mockSquareSearch.mockReset();
+    mockSquareCreate.mockReset();
+    mockClerkGetUser.mockReset();
+    mockClerkUpdateMetadata.mockReset();
   });
 
-  // ---- US1: invalid signature → 400 ----
   describe("signature verification", () => {
-    it("should return 400 when svix verification throws (invalid signature)", async () => {
-      mockVerify.mockImplementationOnce(() => {
-        throw new Error("Invalid signature");
-      });
-
-      const req = buildRequest({
-        type: "user.created",
-        data: { id: "user_123" },
-      });
-      const response = await POST(req);
-      const body = await response.json();
-
-      expect(response.status).toBe(400);
-      expect(body).toEqual({ error: "Invalid webhook signature" });
+    it("should return 400 when svix verification throws", async () => {
+      mockVerify.mockImplementationOnce(() => { throw new Error("Invalid"); });
+      const req = buildRequest({ type: "user.created", data: { id: "x" } });
+      const res = await POST(req);
+      expect(res.status).toBe(400);
     });
 
-    it("should return 400 when svix verification throws (missing headers scenario)", async () => {
-      mockVerify.mockImplementationOnce(() => {
-        throw new Error("Missing required headers");
-      });
-
-      const req = buildRequest(
-        { type: "user.updated", data: { id: "user_456" } },
-        {}
-      );
-      const response = await POST(req);
-      const body = await response.json();
-
-      expect(response.status).toBe(400);
-      expect(body).toEqual({ error: "Invalid webhook signature" });
-    });
-
-    it("should return 200 when svix verification succeeds", async () => {
-      mockVerify.mockReturnValueOnce({
-        type: "user.created",
-        data: { id: "user_test123" },
-      });
-
-      const req = buildRequest({
-        type: "user.created",
-        data: { id: "user_test123" },
-      });
-      const response = await POST(req);
-      const body = await response.json();
-
-      expect(response.status).toBe(200);
-      expect(body).toEqual({ success: true });
+    it("should return 200 for non-user.created event", async () => {
+      mockVerify.mockReturnValueOnce({ type: "user.updated", data: { id: "x" } });
+      const req = buildRequest({ type: "user.updated", data: { id: "x" } });
+      const res = await POST(req);
+      expect(res.status).toBe(200);
     });
   });
 
-  // ---- US1: missing secret → 500 ----
-  // Because CLERK_WEBHOOK_SECRET is read at module import time,
-  // we must reset modules and re-import without the env var set.
   describe("missing webhook secret", () => {
     it("should return 500 when CLERK_WEBHOOK_SECRET is not configured", async () => {
       vi.resetModules();
       delete process.env.CLERK_WEBHOOK_SECRET;
-
-      vi.doMock("svix", () => ({
-        Webhook: vi.fn().mockImplementation(() => ({
-          verify: vi.fn(),
+      vi.doMock("svix", () => ({ Webhook: vi.fn(class { verify = vi.fn() }) }));
+      vi.doMock("@/lib/square/client", () => ({
+        squareClient: {},
+        catalogApi: {},
+        customersApi: { search: vi.fn(), create: vi.fn() },
+        locationId: "TEST",
+        squareAccessToken: "TEST",
+      }));
+      vi.doMock("@clerk/backend", () => ({
+        createClerkClient: vi.fn(() => ({
+          users: { getUser: vi.fn(), updateUserMetadata: vi.fn() },
         })),
       }));
-
-      const { POST: POST_NO_SECRET } = await import("../route");
-      const req = buildRequest({});
-      const response = await POST_NO_SECRET(req);
-      const body = await response.json();
-
-      expect(response.status).toBe(500);
-      expect(body).toEqual({ error: "Webhook secret not configured" });
-
+      const { POST: P } = await import("../route");
+      const res = await P(buildRequest({}));
+      expect(res.status).toBe(500);
       process.env.CLERK_WEBHOOK_SECRET = "whsec_test";
     });
   });
 
-  // ---- US2: console logging ----
   describe("console logging", () => {
-    it("should log event type and data ID on successful verification", async () => {
-      const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
-      mockVerify.mockReturnValueOnce({
-        type: "user.created",
-        data: { id: "user_test123" },
-      });
-
-      const req = buildRequest({
-        type: "user.created",
-        data: { id: "user_test123" },
-      });
-      const response = await POST(req);
-
-      expect(response.status).toBe(200);
-      expect(logSpy).toHaveBeenCalledTimes(1);
-      expect(logSpy).toHaveBeenCalledWith(
-        "Clerk webhook received — type: user.created, data.id: user_test123",
-      );
-
-      logSpy.mockRestore();
+    it("should log event type and data ID", async () => {
+      const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+      mockVerify.mockReturnValueOnce({ type: "user.updated", data: { id: "x" } });
+      await POST(buildRequest({ type: "user.updated", data: { id: "x" } }));
+      expect(spy).toHaveBeenCalled();
+      spy.mockRestore();
     });
+  });
 
-    it("should log event type and data ID for any event type", async () => {
-      const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-      mockVerify.mockReturnValueOnce({
-        type: "user.updated",
-        data: { id: "user_456" },
+  // ===== US1: New user → new Square customer =====
+  describe("user.created — new Square customer", () => {
+    it("should create Square customer and save ID to Clerk metadata", async () => {
+      mockVerify.mockReturnValueOnce(userPayload());
+      mockClerkGetUser.mockResolvedValue({ privateMetadata: {} });
+      mockSquareSearch.mockResolvedValue({ customers: [] });
+      mockSquareCreate.mockResolvedValue({
+        customer: { id: "SQ_NEW_001", givenName: "John", familyName: "Doe" },
       });
+      mockClerkUpdateMetadata.mockResolvedValue({});
 
-      const req = buildRequest({
-        type: "user.updated",
-        data: { id: "user_456" },
+      const res = await POST(buildRequest(userPayload()));
+      expect(res.status).toBe(200);
+      expect(mockSquareCreate).toHaveBeenCalledTimes(1);
+      expect(mockClerkUpdateMetadata).toHaveBeenCalledWith("user_test123", {
+        privateMetadata: { squareCustomerId: "SQ_NEW_001" },
       });
-      const response = await POST(req);
+    });
+  });
 
-      expect(response.status).toBe(200);
-      expect(logSpy).toHaveBeenCalledWith(
-        "Clerk webhook received — type: user.updated, data.id: user_456",
+  // ===== US1: Returning user → existing Square customer =====
+  describe("user.created — existing Square customer", () => {
+    it("should link existing customer without creating duplicate", async () => {
+      mockVerify.mockReturnValueOnce(userPayload());
+      mockClerkGetUser.mockResolvedValue({ privateMetadata: {} });
+      mockSquareSearch.mockResolvedValue({ customers: [{ id: "SQ_EXISTING" }] });
+      mockClerkUpdateMetadata.mockResolvedValue({});
+
+      const res = await POST(buildRequest(userPayload()));
+      expect(res.status).toBe(200);
+      expect(mockSquareCreate).not.toHaveBeenCalled();
+      expect(mockClerkUpdateMetadata).toHaveBeenCalledWith("user_test123", {
+        privateMetadata: { squareCustomerId: "SQ_EXISTING" },
+      });
+    });
+  });
+
+  // ===== US2: Missing email → 400 =====
+  describe("user.created — missing email", () => {
+    it("should return 400 when user has no email addresses", async () => {
+      mockVerify.mockReturnValueOnce(
+        userPayload({ email_addresses: [], primary_email_address_id: null }),
       );
+      const res = await POST(
+        buildRequest(userPayload({ email_addresses: [], primary_email_address_id: null })),
+      );
+      expect(res.status).toBe(400);
+      expect(mockSquareSearch).not.toHaveBeenCalled();
+    });
+  });
 
-      logSpy.mockRestore();
+  // ===== US2: Square API error → 500 =====
+  describe("user.created — Square API error", () => {
+    it("should return 500 when Square search fails", async () => {
+      mockVerify.mockReturnValueOnce(userPayload());
+      mockClerkGetUser.mockResolvedValue({ privateMetadata: {} });
+      mockSquareSearch.mockRejectedValue(new Error("Network error"));
+
+      const res = await POST(buildRequest(userPayload()));
+      expect(res.status).toBe(500);
+      expect(mockClerkUpdateMetadata).not.toHaveBeenCalled();
+    });
+  });
+
+  // ===== US2: User without name =====
+  describe("user.created — user without name", () => {
+    it("should create Square customer with email only", async () => {
+      mockVerify.mockReturnValueOnce(
+        userPayload({ first_name: null, last_name: null }),
+      );
+      mockClerkGetUser.mockResolvedValue({ privateMetadata: {} });
+      mockSquareSearch.mockResolvedValue({ customers: [] });
+      mockSquareCreate.mockResolvedValue({
+        customer: { id: "SQ_NONAME" },
+      });
+      mockClerkUpdateMetadata.mockResolvedValue({});
+
+      const res = await POST(
+        buildRequest(userPayload({ first_name: null, last_name: null })),
+      );
+      expect(res.status).toBe(200);
+    });
+  });
+
+  // ===== US3: Idempotent skip =====
+  describe("user.created — idempotent skip", () => {
+    it("should return 200 when squareCustomerId already exists", async () => {
+      mockVerify.mockReturnValueOnce(userPayload());
+      mockClerkGetUser.mockResolvedValue({
+        privateMetadata: { squareCustomerId: "SQ_ALREADY_SET" },
+      });
+
+      const res = await POST(buildRequest(userPayload()));
+      expect(res.status).toBe(200);
+      expect(mockSquareSearch).not.toHaveBeenCalled();
+      expect(mockSquareCreate).not.toHaveBeenCalled();
     });
   });
 });

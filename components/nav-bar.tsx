@@ -1,12 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { Component, useState } from "react";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { SignInButton, Show, UserButton } from "@clerk/nextjs";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { Search, ShoppingBag, User } from "lucide-react";
+import { Search, ShoppingBag } from "lucide-react";
 import type { NavCategory } from "@/lib/square/types";
+
+/** Error boundary catching Clerk component failures per FR-007. */
+class ClerkErrorBoundary extends Component<
+  { fallback: ReactNode; children: ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { fallback: ReactNode; children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(): { hasError: boolean } {
+    return { hasError: true };
+  }
+
+  render(): ReactNode {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+    return this.props.children;
+  }
+}
 
 interface NavBarProps {
   /** Categories pulled from Square API. Always required — no mock data fallback. */
@@ -63,9 +87,25 @@ export function NavBar({ categories }: NavBarProps) {
           <button className="text-white/70 transition-colors hover:text-white" aria-label="Shopping bag">
             <ShoppingBag className="h-5 w-5" />
           </button>
-          <button className="text-white/70 transition-colors hover:text-white" aria-label="User account">
-            <User className="h-5 w-5" />
-          </button>
+          <ClerkErrorBoundary
+            fallback={
+              <span className="text-white/50 text-sm" aria-label="Sign in unavailable">
+                Sign in unavailable
+              </span>
+            }
+          >
+            <Show when="signed-in">
+              <UserButton />
+            </Show>
+            <Show when="signed-out">
+              <SignInButton mode="modal">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-white/70 hover:text-white transition-colors cursor-pointer">
+                  <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              </SignInButton>
+            </Show>
+          </ClerkErrorBoundary>
         </div>
       </div>
 

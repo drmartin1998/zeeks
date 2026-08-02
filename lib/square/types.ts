@@ -235,6 +235,33 @@ export interface DisplayProduct {
   gradient?: string;
 }
 
+// ---------------------------------------------------------------------------
+// Square Customer types (Clerk-to-Square Customer Sync)
+// ---------------------------------------------------------------------------
+
+/** A customer in Square's CRM, returned from search or create. */
+export interface SquareCustomer {
+  id: string;
+  givenName?: string;
+  familyName?: string;
+  emailAddress?: string;
+}
+
+/** Clerk webhook event payload with full user data. */
+export interface ClerkWebhookEventPayload {
+  type: string;
+  data: {
+    id: string;
+    first_name: string | null;
+    last_name: string | null;
+    email_addresses: Array<{
+      id: string;
+      email_address: string;
+    }>;
+    primary_email_address_id: string | null;
+  };
+}
+
 /**
  * Category data for product listing pages.
  */

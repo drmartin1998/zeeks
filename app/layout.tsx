@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Outfit, Rubik } from "next/font/google";
+import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 
 const inter = Inter({
@@ -33,7 +34,9 @@ export default function RootLayout({
       lang="en"
       className={`${inter.variable} ${outfit.variable} ${rubik.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col overflow-x-hidden">{children}</body>
+      <body className="min-h-full flex flex-col overflow-x-hidden">
+        <ClerkProvider>{children}</ClerkProvider>
+      </body>
     </html>
   );
 }

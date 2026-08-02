@@ -1,0 +1,31 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "context7": {
+      "type": "remote",
+      "url": "https://mcp.context7.com/mcp",
+      "headers": {
+        "CONTEXT7_API_KEY": "<your-context7-api-key>"
+      },
+      "enabled": true
+    },
+    "figma-console": {
+      "type": "local",
+      "command": ["npx", "-y", "figma-console-mcp@latest"],
+      "environment": {
+        "FIGMA_ACCESS_TOKEN": "<your-figma-access-token>",
+        "ENABLE_MCP_APPS": "true"
+      },
+      "enabled": true
+    },
+    "square": {
+      "type": "remote",
+      "url": "https://mcp.squareup.com/sse",
+      "oauth": {
+        "clientId": "<your-square-client-id>",
+        "scope": "MERCHANT_PROFILE_READ CASH_DRAWER_READ CUSTOMERS_READ EMPLOYEES_READ INVENTORY_READ ITEMS_READ ORDERS_READ PAYMENTS_READ TIMECARDS_READ TIMECARDS_SETTINGS_READ APPOINTMENTS_READ APPOINTMENTS_BUSINESS_SETTINGS_READ INVOICES_READ SUBSCRIPTIONS_READ GIFTCARDS_READ ONLINE_STORE_SNIPPETS_READ ONLINE_STORE_SITE_READ APPOINTMENTS_ALL_READ VENDOR_READ PAYOUTS_READ REPORTING_READ DEVICES_READ LOYALTY_READ"
+      },
+      "enabled": true
+    }
+  }
+}
