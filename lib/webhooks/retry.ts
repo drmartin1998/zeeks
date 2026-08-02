@@ -43,7 +43,7 @@ export async function withRetry<T>(
  * within `ms` milliseconds.
  */
 async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  if (AbortSignal.timeout) {
+  if (typeof AbortSignal.timeout === "function") {
     // Node 18+ / modern runtimes
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), ms);
