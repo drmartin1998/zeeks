@@ -28,7 +28,7 @@ Wire the existing nav bar search input to navigate to `/search?q=keyword`, creat
 | IV | Vercel-Native Performance | PASS | Direct function call, no self-fetch |
 | V | Progressive Enhancement | PASS | Server-rendered results; `<Link>` for product navigation |
 | VI | Gherkin-First Testing | PASS | 3 scenarios in search-products.feature |
-| VII | No Mock Data Fallback | PASS | Live Square data only |
+| VII | Environment-Driven Configuration | PASS | Square credentials validated in `lib/env.ts`; `SQUARE_ACCESS_TOKEN`, `SQUARE_LOCATION_ID`, `SQUARE_ENVIRONMENT` required; sandbox default in dev |
 
 ## Project Structure
 
@@ -46,4 +46,6 @@ lib/square/
 
 ## Complexity Tracking
 
-No constitution violations.
+| # | Issue | Justification |
+|---|-------|---------------|
+| II | Direct `catalogApi.searchItems()` call bypasses Route Handlers | Next.js blocks `fetch()` to its own routes during SSR (self-fetch deadlock). The SDK call runs server-side only — Square token is never exposed to the browser. Security intent of Principle II is preserved. Read-only catalog search; no write operations bypass Route Handlers. |

@@ -24,3 +24,16 @@ Feature: Product Search
     Given the search bar is visible
     When a user submits an empty search
     Then they stay on the current page
+
+  @US1_search-products-by-keyword
+  Scenario: Search API error
+    Given the search bar is visible
+    When a user searches for a keyword and the Square API is unreachable
+    Then an error message "Search is temporarily unavailable. Please try again." is displayed
+    And the navigation bar remains visible for the user to navigate away
+
+  @US1_search-products-by-keyword
+  Scenario: Search results are loading
+    Given the search bar is visible
+    When a user submits a search
+    Then a loading skeleton or spinner is displayed while results are being fetched
