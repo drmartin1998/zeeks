@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Search, ShoppingBag, User } from "lucide-react";
@@ -13,6 +15,16 @@ interface NavBarProps {
 
 export function NavBar({ categories }: NavBarProps) {
   const navItems = categories;
+  const router = useRouter();
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = searchQuery.trim();
+    if (trimmed) {
+      router.push(`/search?q=${encodeURIComponent(trimmed)}`);
+    }
+  };
 
   return (
     <header
@@ -34,15 +46,17 @@ export function NavBar({ categories }: NavBarProps) {
         </Link>
 
         {/* Search bar */}
-        <div className="flex w-full max-w-full order-last items-center gap-3 rounded-xl border border-border-default bg-white px-4 py-1.5 lg:order-none lg:w-auto lg:flex-1 lg:max-w-[1069px]">
+        <form onSubmit={handleSearch} className="flex w-full max-w-full order-last items-center gap-3 rounded-xl border border-border-default bg-white px-4 py-1.5 lg:order-none lg:w-auto lg:flex-1 lg:max-w-[1069px]">
           <Input
             placeholder="Search games, miniatures, and more..."
             className="h-8 border-0 bg-transparent text-sm focus-visible:border-0"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
           />
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-action-primary">
+          <button type="submit" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-action-primary">
             <Search className="h-3.5 w-3.5 text-white" />
-          </div>
-        </div>
+          </button>
+        </form>
 
         {/* Actions - always right-aligned */}
         <div className="ml-auto flex items-center gap-4">

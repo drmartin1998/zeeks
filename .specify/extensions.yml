@@ -1,8 +1,20 @@
 installed:
+- git
 - gherkin
 settings:
   auto_execute_hooks: true
 hooks:
+  before_specify:
+  - extension: git
+    command: speckit.git.create-branch
+    enabled: true
+    optional: false
+    priority: 10
+    prompt: Create git branch for this feature?
+    description: 'Creates a git feature branch using the spec-kit naming convention
+      (<NNN>-<short-name>) and switches to it. This ensures all work happens on a
+      feature branch, never directly on main, per the Constitution branching strategy.'
+    condition: null
   after_specify:
   - extension: gherkin
     command: speckit.gherkin.sync
