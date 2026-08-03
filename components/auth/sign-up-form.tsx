@@ -42,10 +42,10 @@ interface ClerkSignUpState {
 }
 
 function findNextUnverified(
-  signUp: ReturnType<typeof useSignUp>["signUp"],
+  signUpResource: Record<string, unknown> | null,
 ): "email" | "phone" | null {
-  if (!signUp) return null;
-  const su = signUp as unknown as ClerkSignUpState;
+  if (!signUpResource) return null;
+  const su = signUpResource as unknown as ClerkSignUpState;
   const verifications = su.verifications;
   if (!verifications) return null;
   if (
@@ -145,7 +145,7 @@ export function SignUpForm() {
       }
 
       if (result.status === "missing_requirements") {
-        const next = findNextUnverified(signUp);
+        const next = findNextUnverified(result as unknown as Record<string, unknown>);
         if (next) {
           await startVerification(next);
         }
@@ -195,7 +195,7 @@ export function SignUpForm() {
       }
 
       if (result.status === "missing_requirements") {
-        const next = findNextUnverified(signUp);
+        const next = findNextUnverified(result as unknown as Record<string, unknown>);
         if (next) {
           await startVerification(next);
           setVerificationCode("");
