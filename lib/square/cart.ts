@@ -130,7 +130,7 @@ export async function getCartItemCount(
  */
 function buildCart(order: Record<string, unknown>): Cart {
   const id = (order.id as string) ?? "";
-  const rawLineItems = (order.lineItems as Array<Record<string, unknown>>) ?? [];
+  const rawLineItems = (order.lineItems as unknown as Array<Record<string, unknown>>) ?? [];
   const totalMoney = order.totalMoney as Record<string, unknown> | undefined;
 
   const lineItems: CartLineItem[] = rawLineItems.map((item) => {

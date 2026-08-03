@@ -64,7 +64,7 @@ export async function createPaymentLink(
 
     const idempotencyKey = crypto.randomUUID();
 
-    const lineItems = ((fullOrder.lineItems ?? []) as Array<Record<string, unknown>>).map(
+    const lineItems = ((fullOrder.lineItems ?? []) as unknown as Array<Record<string, unknown>>).map(
       (item) => ({
         catalogObjectId: item["catalogObjectId"] as string,
         quantity: (item["quantity"] ?? "1") as string,
