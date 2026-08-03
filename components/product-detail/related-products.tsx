@@ -25,6 +25,8 @@ export function RelatedProducts({ products }: RelatedProductsProps) {
             price={product.price}
             image={product.imageUrl}
             gradient={product.gradient}
+            catalogObjectId={product.id}
+            variationId={product.id}
           />
         ))}
       </div>

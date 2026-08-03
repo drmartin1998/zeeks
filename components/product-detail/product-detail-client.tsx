@@ -13,16 +13,25 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
   const [selectedVariation, setSelectedVariation] = useState<ProductVariation>(
     product.variations[0] ?? { id: "", name: "Default", price: product.price }
   );
+  const [quantity, setQuantity] = useState(1);
 
   const displayPrice =
     selectedVariation.price !== product.variations[0]?.price
       ? selectedVariation.price
       : product.price;
 
-  // Out of stock if status indicates it OR the selected variation has zero inventory
-  const isOutOfStock =
-    product.inventoryStatus === "OUT_OF_STOCK" ||
-    (selectedVariation.inventoryCount != null && selectedVariation.inventoryCount <= 0);
+  const variantInventoryStatus: "IN_STOCK" | "OUT_OF_STOCK" | "UNKNOWN" =
+    selectedVariation.inventoryCount != null
+      ? selectedVariation.inventoryCount > 0
+        ? "IN_STOCK"
+        : "OUT_OF_STOCK"
+      : selectedVariation.isSoldOut != null
+        ? selectedVariation.isSoldOut
+          ? "OUT_OF_STOCK"
+          : "IN_STOCK"
+        : product.inventoryStatus;
+
+  const isOutOfStock = variantInventoryStatus === "OUT_OF_STOCK";
 
   return (
     <div className="flex flex-col">
@@ -31,12 +40,18 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
         price={displayPrice}
         currency={product.currency}
         description={product.description}
-        inventoryStatus={isOutOfStock ? "OUT_OF_STOCK" : product.inventoryStatus}
+        inventoryStatus={variantInventoryStatus}
         maxQuantity={
-          selectedVariation.inventoryCount != null
-            ? selectedVariation.inventoryCount
-            : 99
+          selectedVariation.isSoldOut
+            ? 0
+            : selectedVariation.inventoryCount != null
+              ? selectedVariation.inventoryCount
+              : 99
         }
+        catalogObjectId={selectedVariation.id || product.id}
+        variationId={selectedVariation.id || ""}
+        quantity={quantity}
+        onQuantityChange={setQuantity}
       />
       <ProductVariations
         variations={product.variations}

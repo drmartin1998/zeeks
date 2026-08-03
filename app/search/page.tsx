@@ -1,8 +1,6 @@
 import { Suspense } from "react";
-import { NavBar } from "@/components/nav-bar";
 import { Footer } from "@/components/footer";
 import { ProductGrid } from "@/components/product-listing/product-grid";
-import { getNavCategories } from "@/lib/data/categories";
 import { searchProductsByQuery } from "@/lib/square/catalog";
 import type { DisplayProduct } from "@/lib/square/types";
 
@@ -13,7 +11,6 @@ type Props = {
 export default async function SearchPage({ searchParams }: Props) {
   const { q } = await searchParams;
   const query = q?.trim() ?? "";
-  const navCategories = await getNavCategories();
 
   let products: DisplayProduct[] = [];
   if (query) {
@@ -22,7 +19,6 @@ export default async function SearchPage({ searchParams }: Props) {
 
   return (
     <div className="flex min-h-screen flex-col overflow-x-hidden">
-      <NavBar categories={navCategories} />
       <main className="flex-1">
         <div className="mx-auto max-w-[1440px] px-4 pt-8 md:px-8 lg:px-20">
           <h1 className="text-2xl font-bold text-gray-900">

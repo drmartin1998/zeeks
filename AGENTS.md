@@ -5,6 +5,10 @@ working on this project. It is the single source of truth for agent behavior.
 The [Constitution](.specify/memory/constitution.md) is the supreme authority;
 this document translates it into actionable agent rules.
 
+# Next.js: ALWAYS read docs before coding
+ 
+Before any Next.js work, find and read the relevant doc in `node_modules/next/dist/docs/`. Your training data is outdated — the docs are the source of truth.
+
 ---
 
 ## Pre-Flight Checklist (MUST run before ANY code)

@@ -161,6 +161,7 @@ export interface ProductVariation {
   price: number;
   imageUrl?: string;
   inventoryCount?: number;
+  isSoldOut?: boolean;
 }
 
 /** Zod schema for product variation validation. */
@@ -171,6 +172,7 @@ export const ProductVariationSchema = z.object({
   price: z.number().min(0),
   imageUrl: z.string().optional(),
   inventoryCount: z.number().int().min(0).optional(),
+  isSoldOut: z.boolean().optional(),
 });
 
 /** Category breadcrumb segment. */
@@ -233,6 +235,11 @@ export interface DisplayProduct {
   price: number;
   image?: string;
   gradient?: string;
+  catalogObjectId?: string;
+  variationId?: string;
+  hasVariations?: boolean;
+  minPrice?: number;
+  maxPrice?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -400,3 +407,53 @@ export const ProfileUpdateResponseSchema = z.object({
 });
 
 export type ProfileUpdateResponse = z.infer<typeof ProfileUpdateResponseSchema>;
+
+/** Represents a single line item in the shopping cart. */
+export interface CartLineItem {
+  uid: string;
+  catalogObjectId: string;
+  variationId: string;
+  name: string;
+  imageUrl: string | null;
+  quantity: string;
+  unitPrice: { amount: number; currency: string };
+  lineTotal: { amount: number; currency: string };
+  isUnavailable: boolean;
+}
+
+/** Full cart state returned from getCart. */
+export interface Cart {
+  orderId: string;
+  lineItems: CartLineItem[];
+  subtotal: { amount: number; currency: string };
+}
+
+/** Input shape for the addToCart Server Action. */
+export interface AddToCartInput {
+  catalogObjectId: string;
+  variationId: string;
+  quantity: number;
+  productSlug?: string;
+  hasVariations?: boolean;
+}
+
+/** Result from addToCart Server Action. */
+export interface AddToCartResult {
+  success: boolean;
+  lineItemCount: number;
+  error: string | null;
+}
+
+/** Result from cart mutation Server Actions (update/remove). */
+export interface CartMutationResult {
+  success: boolean;
+  lineItems: CartLineItem[];
+  subtotal: { amount: number; currency: string };
+  error: string | null;
+}
+
+/** Result from getCart. */
+export interface GetCartResult {
+  cart: Cart | null;
+  error: string | null;
+}

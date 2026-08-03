@@ -8,8 +8,13 @@ interface FeaturedGamesProps {
     category: string;
     categorySlug: string;
     price: number;
+    minPrice?: number;
+    maxPrice?: number;
     image: string;
     gradient: string;
+    catalogObjectId?: string;
+    variationId?: string;
+    hasVariations?: boolean;
   }[];
 }
 
@@ -46,8 +51,13 @@ export function FeaturedGames({ games }: FeaturedGamesProps) {
                 category={game.category}
                 categorySlug={game.categorySlug}
                 price={game.price}
+                minPrice={game.minPrice}
+                maxPrice={game.maxPrice}
                 image={game.image}
                 gradient={game.gradient}
+                catalogObjectId={game.catalogObjectId}
+                variationId={game.variationId}
+                hasVariations={game.hasVariations}
               />
             ))}
           </div>

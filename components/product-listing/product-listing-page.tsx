@@ -2,20 +2,18 @@
 
 import { useState, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { NavBar } from "@/components/nav-bar";
 import { Footer } from "@/components/footer";
 import { CategoryHero } from "@/components/product-listing/category-hero";
 import { FilterBar } from "@/components/product-listing/filter-bar";
 import { ProductGrid } from "@/components/product-listing/product-grid";
 import { Pagination } from "@/components/product-listing/pagination";
-import type { NavCategory, CategoryDisplayData as CategoryData } from "@/lib/square/types";
+import type { CategoryDisplayData as CategoryData } from "@/lib/square/types";
 import type { SquareSubCategory } from "@/lib/square/catalog";
 
 interface ProductListingPageProps {
   category: CategoryData;
-  navCategories: NavCategory[];
   /** Products for this category — always required (fetched from Square). */
-  products: { slug: string; title: string; category: string; subCategory?: string; subCategorySlug?: string; price: number; image?: string; gradient?: string }[];
+  products: { slug: string; title: string; category: string; subCategory?: string; subCategorySlug?: string; price: number; minPrice?: number; maxPrice?: number; image?: string; gradient?: string; catalogObjectId?: string; variationId?: string; hasVariations?: boolean }[];
   /** Subcategories for filtering */
   subCategories?: SquareSubCategory[];
 }
@@ -24,7 +22,6 @@ const ITEMS_PER_PAGE = 12;
 
 export function ProductListingPage({
   category,
-  navCategories,
   products: allProducts,
   subCategories,
 }: ProductListingPageProps) {
@@ -99,7 +96,6 @@ export function ProductListingPage({
 
   return (
     <div className="flex min-h-screen flex-col overflow-x-hidden">
-      <NavBar categories={navCategories} />
       <main className="flex-1 overflow-x-hidden">
         <CategoryHero
           categoryName={category.name}

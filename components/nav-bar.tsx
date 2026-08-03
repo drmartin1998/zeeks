@@ -37,9 +37,11 @@ class ClerkErrorBoundary extends Component<
 interface NavBarProps {
   /** Categories pulled from Square API. Always required — no mock data fallback. */
   categories: NavCategory[];
+  /** Number of items in the customer's cart. 0 = empty, -1 = error/unknown. Omit to hide badge entirely. */
+  cartItemCount?: number;
 }
 
-export function NavBar({ categories }: NavBarProps) {
+export function NavBar({ categories, cartItemCount }: NavBarProps) {
   const navItems = categories;
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
@@ -86,9 +88,18 @@ export function NavBar({ categories }: NavBarProps) {
 
         {/* Actions - always right-aligned */}
         <div className="ml-auto flex items-center gap-4">
-          <button className="text-white/70 transition-colors hover:text-white" aria-label="Shopping bag">
+          <Link
+            href="/cart"
+            className="relative flex items-center gap-2 text-white/70 transition-colors hover:text-white"
+            aria-label={cartItemCount != null && cartItemCount > 0 ? `Shopping cart, ${cartItemCount} items` : "Shopping cart"}
+          >
             <ShoppingBag className="h-5 w-5" />
-          </button>
+            {cartItemCount != null && cartItemCount > 0 && (
+              <span className="flex items-center rounded-[10px] bg-[#F5A623] px-[6px] py-[2px] text-xs font-bold text-white">
+                {cartItemCount}
+              </span>
+            )}
+          </Link>
           <ClerkErrorBoundary
             fallback={
               <span className="text-white/50 text-sm" aria-label="Sign in unavailable">

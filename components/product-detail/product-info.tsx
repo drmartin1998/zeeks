@@ -1,6 +1,6 @@
 import type { InventoryStatus } from "@/lib/square/types";
 import { QuantityPicker } from "@/components/product-detail/quantity-picker";
-import { Button } from "@/components/ui/button";
+import { AddToCartForm } from "@/components/cart/add-to-cart-form";
 
 interface ProductInfoProps {
   title: string;
@@ -10,6 +10,10 @@ interface ProductInfoProps {
   descriptionHtml?: string;
   inventoryStatus: InventoryStatus;
   maxQuantity?: number;
+  catalogObjectId?: string;
+  variationId?: string;
+  quantity?: number;
+  onQuantityChange?: (qty: number) => void;
 }
 
 export function ProductInfo({
@@ -20,6 +24,10 @@ export function ProductInfo({
   descriptionHtml,
   inventoryStatus,
   maxQuantity = 99,
+  catalogObjectId,
+  variationId,
+  quantity = 1,
+  onQuantityChange,
 }: ProductInfoProps) {
   const isOutOfStock = inventoryStatus === "OUT_OF_STOCK";
   const isInStock = inventoryStatus === "IN_STOCK";
@@ -61,18 +69,39 @@ export function ProductInfo({
         <label className="mb-2 block text-sm font-medium text-gray-700">
           Quantity
         </label>
-        <QuantityPicker min={1} max={maxQuantity} defaultValue={1} disabled={isOutOfStock} />
+        <QuantityPicker
+          min={1}
+          max={maxQuantity}
+          defaultValue={quantity}
+          disabled={isOutOfStock}
+          onChange={onQuantityChange}
+        />
       </div>
 
       {/* Add to Cart Button */}
-      <Button
-        variant="primary"
-        size="xl"
-        disabled={isOutOfStock}
-        className="mt-4 w-full"
-      >
-        {isOutOfStock ? "Out of Stock" : "Add to Cart"}
-      </Button>
+      <div className="mt-4 w-full">
+        {catalogObjectId ? (
+          <AddToCartForm
+            catalogObjectId={catalogObjectId}
+            variationId={variationId ?? catalogObjectId}
+            quantity={quantity}
+            outOfStock={isOutOfStock}
+            disabled={!isOutOfStock && !catalogObjectId}
+            className="w-full"
+            size="xl"
+          />
+        ) : (
+          <AddToCartForm
+            catalogObjectId=""
+            variationId=""
+            quantity={1}
+            disabled
+            outOfStock={isOutOfStock}
+            className="w-full"
+            size="xl"
+          />
+        )}
+      </div>
 
       {/* Availability */}
       <div className="mt-4 flex items-center gap-2">

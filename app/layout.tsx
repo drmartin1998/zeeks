@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Outfit, Rubik } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
+import { NavBarServer } from "@/components/nav-bar-server";
 import "./globals.css";
 
 const inter = Inter({
@@ -24,7 +25,7 @@ export const metadata: Metadata = {
     "Discover, play, and connect with the best games on Zeeks. Your ultimate gaming platform.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
@@ -35,7 +36,10 @@ export default function RootLayout({
       className={`${inter.variable} ${outfit.variable} ${rubik.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col overflow-x-hidden">
-        <ClerkProvider signInUrl="/sign-in" signUpUrl="/sign-up">{children}</ClerkProvider>
+        <ClerkProvider signInUrl="/sign-in" signUpUrl="/sign-up">
+          <NavBarServer />
+          {children}
+        </ClerkProvider>
       </body>
     </html>
   );

@@ -2,7 +2,6 @@ import { auth } from "@clerk/nextjs/server";
 import Link from "next/link";
 import { fetchDashboardData } from "@/lib/square/dashboard";
 import { getSquareCustomerId } from "@/lib/webhooks/clerk";
-import { NavBarServer } from "@/components/nav-bar-server";
 import { Footer } from "@/components/footer";
 import { ProfileHeaderCard } from "@/components/account/profile-header-card";
 import { LoyaltyCard } from "@/components/account/loyalty-card";
@@ -22,7 +21,6 @@ export default async function AccountPage() {
   if (!squareCustomerId) {
     return (
       <div className="flex min-h-screen flex-col overflow-x-hidden">
-        <NavBarServer />
         <main className="flex-1 overflow-x-hidden">
           <div className="mx-auto max-w-[1440px] px-20 py-16 text-center">
             <h1 className="font-heading text-2xl font-semibold mb-4">
@@ -44,7 +42,6 @@ export default async function AccountPage() {
   if (data.profileError && data.loyaltyError && data.ordersError) {
     return (
       <div className="flex min-h-screen flex-col overflow-x-hidden">
-        <NavBarServer />
         <main className="flex-1 overflow-x-hidden">
           <div className="mx-auto max-w-[1440px] px-20 py-16 text-center">
             <h1 className="font-heading text-2xl font-semibold mb-4">
@@ -63,7 +60,6 @@ export default async function AccountPage() {
 
   return (
     <div className="flex min-h-screen flex-col overflow-x-hidden">
-      <NavBarServer />
       <main className="flex-1 overflow-x-hidden">
         <div className="mx-auto max-w-[1440px] px-20 py-12">
           <nav aria-label="Breadcrumb" className="mb-6">

@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { ProductListingPage } from "@/components/product-listing";
-import { getNavCategories } from "@/lib/data/categories";
 import {
   getSquareCategoryBySlug,
   getSquareProductsByCategorySlug,
@@ -24,8 +23,13 @@ function toProduct(sp: SquareProduct) {
     subCategory: sp.subCategory,
     subCategorySlug: sp.subCategorySlug,
     price: sp.price,
+    minPrice: sp.minPrice,
+    maxPrice: sp.maxPrice,
     image: sp.image || undefined,
     gradient: sp.gradient,
+    catalogObjectId: sp.catalogObjectId,
+    variationId: sp.variationId,
+    hasVariations: sp.hasVariations,
   };
 }
 
@@ -38,8 +42,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
     notFound();
   }
 
-  const [navCategories, squareProducts, subCategories] = await Promise.all([
-    getNavCategories(),
+  const [squareProducts, subCategories] = await Promise.all([
     getSquareProductsByCategorySlug(slug),
     getSquareSubcategories(slug),
   ]);
@@ -55,7 +58,6 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
           description: `Browse our full collection of ${cat.title.toLowerCase()} products.`,
           backgroundImage: cat.image,
         }}
-        navCategories={navCategories}
         products={products}
         subCategories={subCategories}
       />

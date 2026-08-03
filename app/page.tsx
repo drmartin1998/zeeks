@@ -1,4 +1,3 @@
-import { NavBarServer } from "@/components/nav-bar-server";
 import { HeroSection } from "@/components/hero-section";
 import { FeaturedCategories } from "@/components/featured-categories";
 import { FeaturedGames } from "@/components/featured-games";
@@ -24,7 +23,6 @@ export default async function Home() {
 
   return (
     <div className="flex min-h-screen flex-col overflow-x-hidden">
-      <NavBarServer />
       <main className="flex-1 overflow-x-hidden">
         <HeroSection />
         {squareCategories.length > 0 && (
@@ -43,8 +41,13 @@ export default async function Home() {
               category: g.category,
               categorySlug: g.categorySlug,
               price: g.price,
+              minPrice: g.minPrice,
+              maxPrice: g.maxPrice,
               image: g.image,
               gradient: g.gradient,
+              catalogObjectId: g.catalogObjectId,
+              variationId: g.variationId,
+              hasVariations: g.hasVariations,
             }))}
           />
         )}

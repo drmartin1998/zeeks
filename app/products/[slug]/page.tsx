@@ -1,12 +1,10 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { NavBar } from "@/components/nav-bar";
 import { Footer } from "@/components/footer";
 import { Breadcrumb } from "@/components/product-detail/breadcrumb";
 import { ProductImageGallery } from "@/components/product-detail/product-image-gallery";
 import { ProductDetailClient } from "@/components/product-detail/product-detail-client";
 import { RelatedProducts } from "@/components/product-detail/related-products";
-import { getNavCategories } from "@/lib/data/categories";
 import { getProductDetailBySlug } from "@/lib/square/catalog";
 import type { ProductDetail } from "@/lib/square/types";
 
@@ -38,11 +36,8 @@ export default async function ProductDetailPage({ params }: Props) {
     notFound();
   }
 
-  const navCategories = await getNavCategories();
-
   return (
     <div className="flex min-h-screen flex-col overflow-x-hidden">
-      <NavBar categories={navCategories} />
       <main className="flex-1 overflow-x-hidden">
         {/* Breadcrumb navigation */}
         <Breadcrumb

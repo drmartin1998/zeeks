@@ -113,8 +113,13 @@ export interface SquareProduct {
   subCategory?: string;
   subCategorySlug?: string;
   price: number;
+  minPrice?: number;
+  maxPrice?: number;
   image: string;
   gradient: string;
+  catalogObjectId?: string;
+  variationId?: string;
+  hasVariations?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -302,6 +307,22 @@ export async function getSquareProductsByCategorySlug(
         const varData = firstVariation?.itemVariationData as Record<string, unknown> | undefined;
         const priceMoney = varData?.priceMoney as { amount?: bigint; currency?: string } | undefined;
 
+        let minPrice: number | undefined;
+        let maxPrice: number | undefined;
+        if (variations.length > 1) {
+          const prices = variations
+            .map((v) => {
+              const vData = v?.itemVariationData as Record<string, unknown> | undefined;
+              const vPrice = vData?.priceMoney as { amount?: bigint; currency?: string } | undefined;
+              return normalizePrice(vPrice?.amount);
+            })
+            .filter((p) => p > 0);
+          if (prices.length > 0) {
+            minPrice = Math.min(...prices);
+            maxPrice = Math.max(...prices);
+          }
+        }
+
         // Determine which subcategory (if any) this product belongs to
         let subCategory: string | undefined;
         let subCategorySlug: string | undefined;
@@ -325,8 +346,13 @@ export async function getSquareProductsByCategorySlug(
           subCategory,
           subCategorySlug,
           price: normalizePrice(priceMoney?.amount),
+          minPrice,
+          maxPrice,
           image: "",
           gradient: "from-zeeks-purple to-zeeks-purple-dark",
+          catalogObjectId: item.id,
+          variationId: (firstVariation?.id as string | undefined) ?? item.id,
+          hasVariations: variations.length > 1,
         };
       });
   } catch {
@@ -361,17 +387,25 @@ export async function getProductDetailBySlug(
   }
 
   try {
-    // Step 1: Fetch all catalog items via search (proven method from fetchAllCategories)
-    const searchResponse = await catalogApi.search({
-      objectTypes: ["ITEM"],
-      includeDeletedObjects: false,
-    });
+    // Step 1: Fetch all catalog items via searchItems (same method used by listing pages)
+    const allItems: CatalogObject[] = [];
+    let cursor: string | undefined;
 
-    const items =
-      (searchResponse as { objects?: CatalogObject[] }).objects ?? [];
+    do {
+      const { items, cursor: nextCursor } = await catalogApi.searchItems({
+        enabledLocationIds: [locationId],
+        limit: 100,
+        cursor,
+      });
+
+      if (items) {
+        allItems.push(...items);
+      }
+      cursor = nextCursor;
+    } while (cursor);
 
     // Step 2: Match by slugified name
-    const matched = items.find((item) => {
+    const matched = allItems.find((item) => {
       if (item.type !== "ITEM") return false;
       const raw = item as unknown as Record<string, unknown>;
       const itemData = raw.itemData as Record<string, unknown> | undefined;
@@ -476,6 +510,7 @@ export async function getProductDetailBySlug(
         inventoryCount: locationOverride?.stockable
           ? (locationOverride?.stockableQuantity as number | undefined)
           : undefined,
+        isSoldOut: (locationOverride?.soldOut as boolean | undefined) ?? false,
       };
     });
 
@@ -608,6 +643,22 @@ export async function searchProductsByQuery(
           | { amount?: bigint; currency?: string }
           | undefined;
 
+        let minPrice: number | undefined;
+        let maxPrice: number | undefined;
+        if (variations.length > 1) {
+          const prices = variations
+            .map((v) => {
+              const vData = v?.itemVariationData as Record<string, unknown> | undefined;
+              const vPrice = vData?.priceMoney as { amount?: bigint; currency?: string } | undefined;
+              return normalizePrice(vPrice?.amount);
+            })
+            .filter((p) => p > 0);
+          if (prices.length > 0) {
+            minPrice = Math.min(...prices);
+            maxPrice = Math.max(...prices);
+          }
+        }
+
         return {
           slug: slugify(name),
           title: name,
@@ -615,6 +666,11 @@ export async function searchProductsByQuery(
           price: normalizePrice(priceMoney?.amount),
           image: undefined,
           gradient: "from-zeeks-purple to-zeeks-purple-dark",
+          catalogObjectId: item.id,
+          variationId: (firstVariation?.id as string | undefined) ?? item.id,
+          hasVariations: variations.length > 1,
+          minPrice,
+          maxPrice,
         };
       });
   } catch (error) {

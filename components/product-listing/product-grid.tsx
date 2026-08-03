@@ -29,8 +29,13 @@ export function ProductGrid({ products }: ProductGridProps) {
             category={product.category}
             productSlug={product.slug}
             price={product.price}
+            minPrice={product.minPrice}
+            maxPrice={product.maxPrice}
             image={product.image}
             gradient={product.gradient}
+            catalogObjectId={product.catalogObjectId}
+            variationId={product.variationId}
+            hasVariations={product.hasVariations}
           />
         ))}
       </div>
