@@ -307,6 +307,12 @@ export interface OrderSummary {
   state: string;
 }
 
+/** Result of a paginated order fetch. */
+export interface PaginatedOrdersResult {
+  orders: OrderSummary[];
+  nextCursor: string | null;
+}
+
 // ---------------------------------------------------------------------------
 // Edit Profile types
 // ---------------------------------------------------------------------------

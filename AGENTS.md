@@ -32,7 +32,21 @@ Before writing a single line of code, verify:
 | 2 | `/speckit-gherkin-sync` (auto hook) | `specs/<feature>/features/<slug>.feature` | At least one `Scenario:` per user story |
 | 3 | `/speckit-plan` | `specs/<feature>/plan.md` | Constitution Check passed |
 | 4 | `/speckit-checklist` | `specs/<feature>/checklists/requirements.md` | All FRs covered |
-| 5 | `/speckit-implement` | Code | 🟢 GHERKIN GATE: `.feature` file must exist |
+| 5 | `/speckit-tasks` | `specs/<feature>/tasks.md` | Tasks grouped by user story with [P] markers |
+| 6 | `/speckit-implement` | Code | 🟢 GHERKIN GATE: `.feature` file must exist |
+
+### Step-by-Step Approval
+
+**The agent MUST pause and request explicit user approval after EVERY step before proceeding to the next.** Never chain multiple steps without user confirmation:
+
+1. Run `/speckit-specify` → output the spec → **WAIT for user approval**
+2. Run `/speckit-gherkin-sync` → output the `.feature` file → **WAIT for user approval**
+3. Run `/speckit-plan` → output the plan → **WAIT for user approval**
+4. Run `/speckit-checklist` → output the checklist → **WAIT for user approval**
+5. Run `/speckit-tasks` → output the task list → **WAIT for user approval**
+6. Run `/speckit-implement` → output the code → verify quality gates
+
+**The agent MUST NOT proceed to step N+1 until the user explicitly approves step N.** If the user says "continue" or "proceed", advance exactly one step and pause again.
 
 ### Gherkin-First Policy
 
@@ -140,6 +154,7 @@ npm run test:e2e      # Playwright — critical paths pass
 |---------|-----------|
 | Writing code without a spec | Run `/speckit-specify` first |
 | Skipping the `.feature` file | Run `/speckit-gherkin-sync` before implement |
+| Racing through all spec-kit steps without pausing | Pause after EACH step; wait for user approval before proceeding |
 | Using `??` for mock data fallback | Remove fallback; show error state instead |
 | Importing from `@/lib/data` in production | Only test files may import mock data modules |
 | Starting `vercel dev` without checking port 3000 | Run `lsof -ti:3000` first |

@@ -45,7 +45,7 @@ function mockLoyaltyResponse(balance: number, lifetimePoints: number) {
   };
 }
 
-function mockOrdersResponse(count: number) {
+function mockOrdersResponse(count: number, cursor?: string | null) {
   const orders = Array.from({ length: count }, (_, i) => ({
     id: `ORDER_${String(i + 1).padStart(3, "0")}`,
     closedAt: `2026-07-${String(30 - i).padStart(2, "0")}T12:00:00Z`,
@@ -55,7 +55,7 @@ function mockOrdersResponse(count: number) {
     },
     state: i === 0 ? "OPEN" : "COMPLETED",
   }));
-  return { orders };
+  return { orders, cursor: cursor ?? null };
 }
 
 describe("fetchDashboardData", () => {
@@ -79,6 +79,7 @@ describe("fetchDashboardData", () => {
     expect(result.orders).toHaveLength(3);
     expect(result.orders[0].id).toBe("ORDER_001");
     expect(result.ordersError).toBeNull();
+    expect(result.ordersNextCursor).toBeNull();
   });
 
   it("should handle missing customer fields gracefully", async () => {
