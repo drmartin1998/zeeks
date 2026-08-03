@@ -46,28 +46,43 @@ function findNextUnverified(
 ): "email" | "phone" | null {
   if (!signUpResource) return null;
   const su = signUpResource as unknown as ClerkSignUpState;
+
   const verifications = su.verifications;
-  if (!verifications) return null;
-  if (
-    verifications.emailAddress &&
-    (verifications.emailAddress.status === "unverified" ||
-      verifications.emailAddress.status === "transferable")
-  ) {
+  const suRaw = su as unknown as Record<string, unknown>;
+  const unverifiedFields: string[] | null =
+    su.unverifiedFields ??
+    (suRaw.unverified_fields as string[] | null);
+
+  if (verifications) {
+    if (
+      verifications.emailAddress &&
+      (verifications.emailAddress.status === "unverified" ||
+        verifications.emailAddress.status === "transferable")
+    ) {
+      return "email";
+    }
+    if (
+      verifications.phoneNumber &&
+      (verifications.phoneNumber.status === "unverified" ||
+        verifications.phoneNumber.status === "transferable")
+    ) {
+      return "phone";
+    }
+  }
+
+  if (unverifiedFields?.includes("phone_number") && !verifications?.phoneNumber) {
+    return "phone";
+  }
+  if (unverifiedFields?.includes("email_address") && !verifications?.emailAddress) {
     return "email";
   }
-  if (
-    verifications.phoneNumber &&
-    (verifications.phoneNumber.status === "unverified" ||
-      verifications.phoneNumber.status === "transferable")
-  ) {
-    return "phone";
-  }
-  if (
-    su.unverifiedFields?.includes("phone_number") &&
-    !verifications.phoneNumber
-  ) {
-    return "phone";
-  }
+
+  const missingFields: string[] | null =
+    (suRaw.missingFields as string[] | null) ??
+    (suRaw.missing_fields as string[] | null);
+  if (missingFields?.includes("phone_number")) return "phone";
+  if (missingFields?.includes("email_address")) return "email";
+
   return null;
 }
 
@@ -109,8 +124,9 @@ export function SignUpForm() {
   }
 
   async function startVerification(target: "email" | "phone") {
+    if (!signUp) throw new Error("Sign-up session not found. Please try again.");
     const strategy = target === "email" ? "email_code" : ("phone_code" as const);
-    await signUp!.prepareVerification({ strategy });
+    await signUp.prepareVerification({ strategy });
     setVerificationType(target);
   }
 
@@ -145,7 +161,7 @@ export function SignUpForm() {
       }
 
       if (result.status === "missing_requirements") {
-        const next = findNextUnverified(result as unknown as Record<string, unknown>);
+        const next = findNextUnverified(signUp as unknown as Record<string, unknown>);
         if (next) {
           await startVerification(next);
         }
@@ -195,9 +211,16 @@ export function SignUpForm() {
       }
 
       if (result.status === "missing_requirements") {
-        const next = findNextUnverified(result as unknown as Record<string, unknown>);
+        const next = findNextUnverified(signUp as unknown as Record<string, unknown>);
         if (next) {
-          await startVerification(next);
+          try {
+            await startVerification(next);
+          } catch (verifyErr) {
+            const msg =
+              verifyErr instanceof Error ? verifyErr.message : `Failed to start ${next} verification`;
+            setApiError(msg);
+            return;
+          }
           setVerificationCode("");
           setResendSuccess(false);
           return;
