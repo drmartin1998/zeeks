@@ -16,7 +16,12 @@ interface FieldErrors {
   verifyPassword?: string;
 }
 
-const PHONE_REGEX = /^\+\d{7,15}$/;
+const PHONE_REGEX = /^\+?\d{10,15}$/;
+
+function normalizePhone(raw: string): string {
+  if (raw.startsWith("+")) return raw;
+  return `+1${raw}`;
+}
 
 export function SignUpForm() {
   const router = useRouter();
@@ -31,7 +36,9 @@ export function SignUpForm() {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [apiError, setApiError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [verificationStep, setVerificationStep] = useState(false);
+  const [verificationType, setVerificationType] = useState<
+    "email" | "phone" | null
+  >(null);
   const [verificationCode, setVerificationCode] = useState("");
   const [resendSuccess, setResendSuccess] = useState(false);
 
@@ -43,7 +50,7 @@ export function SignUpForm() {
     if (!phone.trim()) {
       errs.phone = "Phone number is required";
     } else if (!PHONE_REGEX.test(phone.trim())) {
-      errs.phone = "Enter phone in E.164 format (e.g. +15551234567)";
+      errs.phone = "Enter a valid phone number (e.g. 5551234567)";
     }
     if (!password) errs.password = "Password is required";
     if (password && password !== verifyPassword) {
@@ -68,11 +75,12 @@ export function SignUpForm() {
 
     setLoading(true);
     try {
+      const phoneNumber = normalizePhone(phone.trim());
       const result = await signUp.create({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         emailAddress: email.trim(),
-        phoneNumber: phone.trim(),
+        phoneNumber,
         password,
       });
 
@@ -84,7 +92,7 @@ export function SignUpForm() {
 
       if (result.status === "missing_requirements") {
         await signUp.prepareVerification({ strategy: "email_code" });
-        setVerificationStep(true);
+        setVerificationType("email");
       }
     } catch (err) {
       const message =
@@ -105,24 +113,49 @@ export function SignUpForm() {
     }
 
     if (!isLoaded || !signUp || !setActive) return;
+    if (!verificationType) return;
+
+    const strategy =
+      verificationType === "email" ? "email_code" : ("phone_code" as const);
 
     setLoading(true);
     try {
       const result = await signUp.attemptVerification({
-        strategy: "email_code",
+        strategy,
         code: verificationCode.trim(),
       });
 
       if (result.status === "complete") {
-        await setActive({ session: result.createdSessionId });
-        router.back();
+        try {
+          await setActive({ session: result.createdSessionId });
+          router.back();
+        } catch {
+          router.push("/sign-in");
+        }
         return;
+      }
+
+      if (result.status === "missing_requirements") {
+        if (
+          verificationType === "email" &&
+          result.verifications?.emailAddress?.status === "verified"
+        ) {
+          await signUp.prepareVerification({ strategy: "phone_code" });
+          setVerificationType("phone");
+          setVerificationCode("");
+          setResendSuccess(false);
+          return;
+        }
       }
 
       setApiError("Verification failed. Please check your code and try again.");
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Verification failed";
+      if (/already|complete|expired/i.test(message)) {
+        setApiError("Your account is verified. Please sign in.");
+        return;
+      }
       setApiError(message);
     } finally {
       setLoading(false);
@@ -130,13 +163,16 @@ export function SignUpForm() {
   }
 
   async function handleResendCode() {
-    if (!signUp) return;
+    if (!signUp || !verificationType) return;
+
+    const strategy =
+      verificationType === "email" ? "email_code" : ("phone_code" as const);
 
     setApiError(null);
     setResendSuccess(false);
     setLoading(true);
     try {
-      await signUp.prepareVerification({ strategy: "email_code" });
+      await signUp.prepareVerification({ strategy });
       setResendSuccess(true);
     } catch (err) {
       const message =
@@ -147,15 +183,19 @@ export function SignUpForm() {
     }
   }
 
-  if (verificationStep) {
+  if (verificationType) {
+    const isEmail = verificationType === "email";
+    const target = isEmail ? email : phone;
+    const label = isEmail ? "email" : "phone";
+
     return (
       <div className="mx-auto w-full max-w-md px-4">
         <h1 className="font-heading text-2xl font-extrabold text-primary mb-2">
-          Verify your email
+          Verify your {label}
         </h1>
         <p className="text-sm text-muted-foreground mb-8">
-          We sent a verification code to <strong>{email}</strong>. Enter it below
-          to complete your sign-up.
+          We sent a verification code to <strong>{target}</strong>. Enter it
+          below to complete your sign-up.
         </p>
 
         {apiError && (
@@ -166,7 +206,7 @@ export function SignUpForm() {
 
         {resendSuccess && (
           <div className="mb-6 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-            A new verification code has been sent to your email.
+            A new verification code has been sent to your {label}.
           </div>
         )}
 
@@ -292,7 +332,7 @@ export function SignUpForm() {
             type="tel"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
-            placeholder="+15551234567"
+            placeholder="5551234567"
             autoComplete="tel"
           />
           {errors.phone && (
