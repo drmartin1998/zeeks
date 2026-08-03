@@ -31,6 +31,9 @@ export function SignUpForm() {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [apiError, setApiError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [verificationStep, setVerificationStep] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
+  const [resendSuccess, setResendSuccess] = useState(false);
 
   function validate(): FieldErrors {
     const errs: FieldErrors = {};
@@ -81,9 +84,7 @@ export function SignUpForm() {
 
       if (result.status === "missing_requirements") {
         await signUp.prepareVerification({ strategy: "email_code" });
-        setApiError(
-          "Please check your email for a verification code to complete sign-up.",
-        );
+        setVerificationStep(true);
       }
     } catch (err) {
       const message =
@@ -92,6 +93,119 @@ export function SignUpForm() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleVerifyCode(e: FormEvent) {
+    e.preventDefault();
+    setApiError(null);
+
+    if (!verificationCode.trim()) {
+      setApiError("Please enter the verification code");
+      return;
+    }
+
+    if (!isLoaded || !signUp || !setActive) return;
+
+    setLoading(true);
+    try {
+      const result = await signUp.attemptVerification({
+        strategy: "email_code",
+        code: verificationCode.trim(),
+      });
+
+      if (result.status === "complete") {
+        await setActive({ session: result.createdSessionId });
+        router.back();
+        return;
+      }
+
+      setApiError("Verification failed. Please check your code and try again.");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Verification failed";
+      setApiError(message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleResendCode() {
+    if (!signUp) return;
+
+    setApiError(null);
+    setResendSuccess(false);
+    setLoading(true);
+    try {
+      await signUp.prepareVerification({ strategy: "email_code" });
+      setResendSuccess(true);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to resend code";
+      setApiError(message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (verificationStep) {
+    return (
+      <div className="mx-auto w-full max-w-md px-4">
+        <h1 className="font-heading text-2xl font-extrabold text-primary mb-2">
+          Verify your email
+        </h1>
+        <p className="text-sm text-muted-foreground mb-8">
+          We sent a verification code to <strong>{email}</strong>. Enter it below
+          to complete your sign-up.
+        </p>
+
+        {apiError && (
+          <div className="mb-6 rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            {apiError}
+          </div>
+        )}
+
+        {resendSuccess && (
+          <div className="mb-6 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+            A new verification code has been sent to your email.
+          </div>
+        )}
+
+        <form onSubmit={handleVerifyCode} className="flex flex-col gap-5">
+          <div className="flex flex-col gap-1.5">
+            <label
+              htmlFor="verification-code"
+              className="text-sm font-medium text-primary"
+            >
+              Verification code
+            </label>
+            <Input
+              id="verification-code"
+              type="text"
+              inputMode="numeric"
+              maxLength={6}
+              value={verificationCode}
+              onChange={(e) => setVerificationCode(e.target.value)}
+              placeholder="Enter 6-digit code"
+              autoComplete="one-time-code"
+            />
+          </div>
+
+          <Button type="submit" disabled={loading} className="w-full">
+            {loading ? "Verifying..." : "Verify Code"}
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            disabled={loading}
+            onClick={handleResendCode}
+            className="w-full"
+          >
+            Resend code
+          </Button>
+        </form>
+      </div>
+    );
   }
 
   return (
