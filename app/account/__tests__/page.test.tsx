@@ -28,6 +28,10 @@ vi.mock("@/components/footer", () => ({
   Footer: () => null,
 }));
 
+vi.mock("@/components/account/orders-card", () => ({
+  OrdersCard: () => null,
+}));
+
 const { default: AccountPage } = await import("@/app/account/page");
 
 beforeEach(() => {
@@ -78,6 +82,7 @@ describe("AccountPage", () => {
           state: "COMPLETED",
         },
       ],
+      ordersNextCursor: null,
       ordersError: null,
     });
 
@@ -87,8 +92,6 @@ describe("AccountPage", () => {
     expect(screen.getByText("jane@example.com")).toBeInTheDocument();
     expect(screen.getByText("Zeeks Rewards")).toBeInTheDocument();
     expect(screen.getByText("500")).toBeInTheDocument();
-    expect(screen.getByText("Order History")).toBeInTheDocument();
-    expect(screen.getByText("$15.00")).toBeInTheDocument();
   });
 
   it("should show profile error state when profile fetch fails", async () => {
@@ -106,6 +109,7 @@ describe("AccountPage", () => {
           state: "COMPLETED",
         },
       ],
+      ordersNextCursor: null,
       ordersError: null,
     });
 
@@ -115,7 +119,6 @@ describe("AccountPage", () => {
       screen.getByText("Unable to load profile information"),
     ).toBeInTheDocument();
     expect(screen.getByText("Zeeks Rewards")).toBeInTheDocument();
-    expect(screen.getByText("Order History")).toBeInTheDocument();
   });
 
   it("should show full-page error when all three APIs fail", async () => {
@@ -126,6 +129,7 @@ describe("AccountPage", () => {
       loyalty: null,
       loyaltyError: "Network error",
       orders: [],
+      ordersNextCursor: null,
       ordersError: "Network error",
     });
 

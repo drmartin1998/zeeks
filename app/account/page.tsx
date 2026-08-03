@@ -88,6 +88,7 @@ export default async function AccountPage() {
             />
             <OrdersCard
               orders={data.orders}
+              nextCursor={data.ordersNextCursor}
               error={data.ordersError}
             />
           </div>

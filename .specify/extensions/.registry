@@ -10,6 +10,9 @@
       "registered_commands": {
         "claude": [
           "speckit.gherkin.sync"
+        ],
+        "opencode": [
+          "speckit.gherkin.sync"
         ]
       },
       "registered_skills": [],
@@ -22,7 +25,7 @@
       "enabled": true,
       "priority": 10,
       "registered_commands": {
-        "cline": [
+        "opencode": [
           "speckit.git.feature",
           "speckit.git.validate",
           "speckit.git.remote",

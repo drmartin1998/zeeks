@@ -1,6 +1,5 @@
 ---
 description: Auto-commit changes after a Spec Kit command completes
-name: speckit-git-commit
 ---
 
 

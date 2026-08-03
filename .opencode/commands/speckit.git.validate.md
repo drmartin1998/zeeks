@@ -1,6 +1,5 @@
 ---
 description: Validate current branch follows feature branch naming conventions
-name: speckit-git-validate
 ---
 
 

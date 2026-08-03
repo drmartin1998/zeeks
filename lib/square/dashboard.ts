@@ -8,6 +8,7 @@ import type {
   CustomerProfile,
   LoyaltySummary,
   OrderSummary,
+  PaginatedOrdersResult,
 } from "@/lib/square/types";
 
 export interface DashboardResult {
@@ -16,6 +17,7 @@ export interface DashboardResult {
   loyalty: LoyaltySummary | null;
   loyaltyError: string | null;
   orders: OrderSummary[];
+  ordersNextCursor: string | null;
   ordersError: string | null;
 }
 
@@ -26,8 +28,15 @@ export async function fetchDashboardData(
     await Promise.allSettled([
       fetchCustomerProfile(squareCustomerId),
       fetchLoyaltyBalance(squareCustomerId),
-      fetchOrderHistory(squareCustomerId),
+      fetchOrderHistory(squareCustomerId, null, 10),
     ]);
+
+  const orders: OrderSummary[] =
+    ordersResult.status === "fulfilled" ? ordersResult.value.orders : [];
+  const ordersNextCursor =
+    ordersResult.status === "fulfilled"
+      ? ordersResult.value.nextCursor
+      : null;
 
   return {
     profile:
@@ -42,8 +51,8 @@ export async function fetchDashboardData(
       loyaltyResult.status === "rejected"
         ? getErrorMessage(loyaltyResult.reason)
         : null,
-    orders:
-      ordersResult.status === "fulfilled" ? ordersResult.value : [],
+    orders,
+    ordersNextCursor,
     ordersError:
       ordersResult.status === "rejected"
         ? getErrorMessage(ordersResult.reason)
@@ -85,9 +94,12 @@ async function fetchLoyaltyBalance(
 
 async function fetchOrderHistory(
   squareCustomerId: string,
-): Promise<OrderSummary[]> {
+  cursor: string | null,
+  limit: number,
+): Promise<PaginatedOrdersResult> {
   const response = await ordersApi.search({
     locationIds: [locationId],
+    cursor: cursor ?? undefined,
     query: {
       filter: {
         customerFilter: {
@@ -99,20 +111,24 @@ async function fetchOrderHistory(
         sortOrder: "DESC",
       },
     },
-    limit: 10,
+    limit,
   });
 
   const orders = response.orders ?? [];
+  const nextCursor = response.cursor ?? null;
 
-  return orders.map((order) => ({
-    id: order.id ?? "",
-    closedAt: order.closedAt ?? undefined,
-    totalMoney: {
-      amount: order.totalMoney?.amount,
-      currency: order.totalMoney?.currency,
-    },
-    state: order.state ?? "UNKNOWN",
-  }));
+  return {
+    orders: orders.map((order) => ({
+      id: order.id ?? "",
+      closedAt: order.closedAt ?? undefined,
+      totalMoney: {
+        amount: order.totalMoney?.amount,
+        currency: order.totalMoney?.currency,
+      },
+      state: order.state ?? "UNKNOWN",
+    })),
+    nextCursor,
+  };
 }
 
 function getErrorMessage(error: unknown): string {

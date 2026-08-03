@@ -1,6 +1,5 @@
 ---
 description: Initialize a Git repository with an initial commit
-name: speckit-git-initialize
 ---
 
 

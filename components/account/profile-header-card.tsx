@@ -64,9 +64,6 @@ export function ProfileHeaderCard({ profile, error }: ProfileHeaderCardProps) {
         >
           Edit Profile
         </Link>
-        <button className="rounded-lg bg-[#F5A623] px-6 py-3.5 font-ui text-[14px] font-bold text-white">
-          Account Settings
-        </button>
       </div>
     </div>
   );
