@@ -2,6 +2,7 @@ import { customersApi } from "@/lib/square/client";
 import type {
   SquareCustomer,
   ClerkWebhookEventPayload,
+  CustomerProfileFull,
 } from "@/lib/square/types";
 
 /**
@@ -101,4 +102,59 @@ export function maskEmail(email: string): string {
       ? localPart[0] + "***"
       : localPart[0] + "***" + localPart[localPart.length - 1];
   return `${masked}@${domain}`;
+}
+
+/**
+ * Retrieves a full Square customer profile including address.
+ * Used by the edit profile page to pre-populate the form.
+ */
+export async function getCustomer(
+  squareCustomerId: string,
+): Promise<CustomerProfileFull> {
+  const response = await customersApi.get({ customerId: squareCustomerId });
+  const customer = response.customer;
+
+  return {
+    id: customer?.id ?? squareCustomerId,
+    givenName: customer?.givenName ?? undefined,
+    familyName: customer?.familyName ?? undefined,
+    emailAddress: customer?.emailAddress ?? undefined,
+    phoneNumber: customer?.phoneNumber ?? undefined,
+    address: {
+      addressLine1: customer?.address?.addressLine1 ?? undefined,
+      locality: customer?.address?.locality ?? undefined,
+      administrativeDistrictLevel1:
+        customer?.address?.administrativeDistrictLevel1 ?? undefined,
+      postalCode: customer?.address?.postalCode ?? undefined,
+    },
+  };
+}
+
+/**
+ * Updates a Square customer's profile and/or address.
+ * Only includes fields that are explicitly provided.
+ */
+export async function updateCustomer(
+  squareCustomerId: string,
+  updates: {
+    givenName?: string;
+    familyName?: string;
+    emailAddress?: string;
+    phoneNumber?: string;
+    address?: {
+      addressLine1?: string;
+      locality?: string;
+      administrativeDistrictLevel1?: string;
+      postalCode?: string;
+    };
+  },
+): Promise<void> {
+  await customersApi.update({
+    customerId: squareCustomerId,
+    givenName: updates.givenName,
+    familyName: updates.familyName,
+    emailAddress: updates.emailAddress,
+    phoneNumber: updates.phoneNumber,
+    address: updates.address,
+  });
 }

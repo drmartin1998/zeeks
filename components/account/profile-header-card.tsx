@@ -1,4 +1,5 @@
 import type { CustomerProfile } from "@/lib/square/types";
+import Link from "next/link";
 
 interface ProfileHeaderCardProps {
   profile: CustomerProfile | null;
@@ -57,9 +58,12 @@ export function ProfileHeaderCard({ profile, error }: ProfileHeaderCardProps) {
       </div>
 
       <div className="flex gap-3">
-        <button className="rounded-lg border-2 border-[#7B4FA2] px-6 py-3.5 font-ui text-[14px] font-bold text-[#7B4FA2]">
+        <Link
+          href="/account/edit"
+          className="rounded-lg border-2 border-[#7B4FA2] px-6 py-3.5 font-ui text-[14px] font-bold text-[#7B4FA2]"
+        >
           Edit Profile
-        </button>
+        </Link>
         <button className="rounded-lg bg-[#F5A623] px-6 py-3.5 font-ui text-[14px] font-bold text-white">
           Account Settings
         </button>

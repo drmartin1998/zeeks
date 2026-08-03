@@ -306,3 +306,91 @@ export interface OrderSummary {
   };
   state: string;
 }
+
+// ---------------------------------------------------------------------------
+// Edit Profile types
+// ---------------------------------------------------------------------------
+
+/** Address fields for Square customer (default shipping address). */
+export interface CustomerAddress {
+  addressLine1: string | undefined;
+  locality: string | undefined;
+  administrativeDistrictLevel1: string | undefined;
+  postalCode: string | undefined;
+}
+
+/** Full customer profile with address for the edit profile page. */
+export interface CustomerProfileFull {
+  id: string;
+  givenName: string | undefined;
+  familyName: string | undefined;
+  emailAddress: string | undefined;
+  phoneNumber: string | undefined;
+  address: CustomerAddress;
+}
+
+/** Clerk user profile fields for comparison/sync. */
+export interface ClerkProfile {
+  firstName: string;
+  lastName: string;
+  primaryEmail: string | null;
+  primaryPhone: string | null;
+}
+
+/** Shape returned by GET /api/account/profile. */
+export interface ProfileResponse {
+  squareProfile: CustomerProfileFull;
+  clerkProfile: ClerkProfile | null;
+  clerkError: string | null;
+  mismatchDetected: boolean;
+}
+
+/** Zod schema for the phone field (E.164 or US format). */
+export const PhoneSchema = z
+  .string()
+  .regex(
+    /^(\+\d{7,15}|\(\d{3}\)\s\d{3}[-.]\d{4}|\d{3}[-.]\d{3}[-.]\d{4})$/,
+    "Enter a valid phone number"
+  )
+  .optional()
+  .or(z.literal(""));
+
+/** Zod schema for the address section. */
+export const AddressInputSchema = z.object({
+  addressLine1: z.string().optional(),
+  locality: z.string().optional(),
+  administrativeDistrictLevel1: z.string().optional(),
+  postalCode: z.string().optional(),
+});
+
+/** Zod schema for profile update input validation. */
+export const UpdateProfileInputSchema = z.object({
+  givenName: z.string().optional(),
+  familyName: z.string().optional(),
+  emailAddress: z.string().email("Invalid email address").optional().or(z.literal("")),
+  phoneNumber: PhoneSchema,
+  address: AddressInputSchema.optional(),
+  currentPassword: z.string().optional(),
+  newPassword: z.string().min(8, "Password must be at least 8 characters").optional().or(z.literal("")),
+  confirmPassword: z.string().optional(),
+}).refine(
+  (data) => {
+    if (data.newPassword && data.newPassword !== data.confirmPassword) {
+      return false;
+    }
+    return true;
+  },
+  { message: "Passwords do not match", path: ["confirmPassword"] }
+);
+
+export type UpdateProfileInput = z.infer<typeof UpdateProfileInputSchema>;
+
+/** Response from PUT /api/account/profile. */
+export const ProfileUpdateResponseSchema = z.object({
+  success: z.boolean(),
+  squareError: z.string().nullable().optional(),
+  clerkError: z.string().nullable().optional(),
+  passwordError: z.string().nullable().optional(),
+});
+
+export type ProfileUpdateResponse = z.infer<typeof ProfileUpdateResponseSchema>;
