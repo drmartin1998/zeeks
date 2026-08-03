@@ -36,11 +36,17 @@ interface ClerkVerifications {
   phoneNumber: VerificationStatus | null;
 }
 
+interface ClerkSignUpState {
+  verifications: ClerkVerifications;
+  unverifiedFields: string[] | null;
+}
+
 function findNextUnverified(
   signUp: ReturnType<typeof useSignUp>["signUp"],
 ): "email" | "phone" | null {
   if (!signUp) return null;
-  const verifications = (signUp as unknown as { verifications: ClerkVerifications }).verifications;
+  const su = signUp as unknown as ClerkSignUpState;
+  const verifications = su.verifications;
   if (!verifications) return null;
   if (
     verifications.emailAddress &&
@@ -53,6 +59,12 @@ function findNextUnverified(
     verifications.phoneNumber &&
     (verifications.phoneNumber.status === "unverified" ||
       verifications.phoneNumber.status === "transferable")
+  ) {
+    return "phone";
+  }
+  if (
+    su.unverifiedFields?.includes("phone_number") &&
+    !verifications.phoneNumber
   ) {
     return "phone";
   }
