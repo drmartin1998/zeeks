@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock next/navigation for useRouter
@@ -114,20 +114,22 @@ describe("NavBar — Auth (US1): Unauthenticated", () => {
     setClerkMockConfig({ signedIn: false });
   });
 
-  it("should render a clickable profile icon for unauthenticated visitors", () => {
+  it("should render a profile icon for unauthenticated visitors", () => {
     render(<NavBar categories={[]} />);
 
-    // The SignInButton mock renders a button with data-clerk-sign-in
-    const signInButton = screen.getByRole("button", { name: "User account" });
-    expect(signInButton).toBeInTheDocument();
-    expect(signInButton).toHaveAttribute("data-clerk-sign-in");
+    const profileButton = screen.getByRole("button", { name: "Account menu" });
+    expect(profileButton).toBeInTheDocument();
+    expect(profileButton).toHaveAttribute("aria-expanded", "false");
   });
 
-  it("should set SignInButton to modal mode for in-page auth", () => {
+  it("should open dropdown when profile icon is clicked", () => {
     render(<NavBar categories={[]} />);
 
-    const signInButton = screen.getByRole("button", { name: "User account" });
-    expect(signInButton).toHaveAttribute("data-mode", "modal");
+    const profileButton = screen.getByRole("button", { name: "Account menu" });
+    expect(screen.queryByText("Login")).not.toBeInTheDocument();
+    fireEvent.click(profileButton);
+    expect(screen.getByText("Login")).toBeInTheDocument();
+    expect(screen.getByText("Sign Up")).toBeInTheDocument();
   });
 });
 
@@ -143,22 +145,11 @@ describe("NavBar — Auth (US2): Authenticated", () => {
     });
   });
 
-  it("should render UserButton when user is signed in", () => {
+  it("should render UserMenu when user is signed in", () => {
     render(<NavBar categories={[]} />);
 
-    // The UserButton mock renders a button with data-clerk-user-button
-    const userButton = screen.getByRole("button", { name: "User: test@example.com" });
-    expect(userButton).toBeInTheDocument();
-    expect(userButton).toHaveAttribute("data-clerk-user-button");
-  });
-
-  it("should NOT render SignInButton when user is signed in", () => {
-    render(<NavBar categories={[]} />);
-
-    // SignInButton should not be present since Show hides it for signed-in state
-    expect(
-      screen.queryByRole("button", { name: "User account" })
-    ).not.toBeInTheDocument();
+    const menuButton = screen.getByRole("button", { name: "Account menu" });
+    expect(menuButton).toBeInTheDocument();
   });
 });
 
@@ -177,17 +168,15 @@ describe("NavBar — Auth (US3): Session Persistence", () => {
   it("should persist auth state across re-renders", () => {
     const { unmount } = render(<NavBar categories={[]} />);
 
-    // Verify UserButton is present on first render
     expect(
-      screen.getByRole("button", { name: "User: test@example.com" })
+      screen.getByRole("button", { name: "Account menu" })
     ).toBeInTheDocument();
 
-    // Unmount and remount — auth state should persist
     unmount();
     render(<NavBar categories={[]} />);
 
     expect(
-      screen.getByRole("button", { name: "User: test@example.com" })
+      screen.getByRole("button", { name: "Account menu" })
     ).toBeInTheDocument();
   });
 });

@@ -35,7 +35,7 @@ export default function RootLayout({
       className={`${inter.variable} ${outfit.variable} ${rubik.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col overflow-x-hidden">
-        <ClerkProvider>{children}</ClerkProvider>
+        <ClerkProvider signInUrl="/sign-in" signUpUrl="/sign-up">{children}</ClerkProvider>
       </body>
     </html>
   );

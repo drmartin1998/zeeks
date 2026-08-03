@@ -44,6 +44,8 @@ describe("extractPrimaryEmail", () => {
           { id: "eml_2", email_address: "primary@example.com" },
         ],
         primary_email_address_id: "eml_2",
+        phone_numbers: [],
+        primary_phone_number_id: null,
       },
     };
     expect(extractPrimaryEmail(payload)).toBe("primary@example.com");
@@ -58,6 +60,8 @@ describe("extractPrimaryEmail", () => {
         last_name: null,
         email_addresses: [{ id: "eml_1", email_address: "only@example.com" }],
         primary_email_address_id: null,
+        phone_numbers: [],
+        primary_phone_number_id: null,
       },
     };
     expect(extractPrimaryEmail(payload)).toBe("only@example.com");
@@ -72,6 +76,8 @@ describe("extractPrimaryEmail", () => {
         last_name: null,
         email_addresses: [],
         primary_email_address_id: null,
+        phone_numbers: [],
+        primary_phone_number_id: null,
       },
     };
     expect(extractPrimaryEmail(payload)).toBeNull();

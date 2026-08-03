@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 
 process.env.CLERK_WEBHOOK_SECRET = "whsec_test";
 process.env.CLERK_SECRET_KEY = "sk_test_mock";
+process.env.SQUARE_LOYALTY_PROGRAM_ID = "prog_test_123";
 
 const mockVerify = vi.fn();
 vi.mock("svix", () => ({
@@ -10,12 +11,20 @@ vi.mock("svix", () => ({
 
 const mockSquareSearch = vi.fn();
 const mockSquareCreate = vi.fn();
+const mockLoyaltyAccSearch = vi.fn();
+const mockLoyaltyAccCreate = vi.fn();
 vi.mock("@/lib/square/client", () => ({
   squareClient: {},
   catalogApi: {},
   customersApi: {
     search: (...args: unknown[]) => mockSquareSearch(...args),
     create: (...args: unknown[]) => mockSquareCreate(...args),
+  },
+  loyaltyApi: {
+    accounts: {
+      search: (...args: unknown[]) => mockLoyaltyAccSearch(...args),
+      create: (...args: unknown[]) => mockLoyaltyAccCreate(...args),
+    },
   },
   locationId: "TEST_LOCATION",
   squareAccessToken: "TEST_TOKEN",
@@ -53,6 +62,8 @@ function userPayload(overrides: Record<string, unknown> = {}) {
       last_name: "Doe",
       email_addresses: [{ id: "eml_1", email_address: "john@example.com" }],
       primary_email_address_id: "eml_1",
+      phone_numbers: [{ id: "phn_1", phone_number: "+15551234567" }],
+      primary_phone_number_id: "phn_1",
       ...overrides,
     },
   };
@@ -65,6 +76,8 @@ describe("POST /api/webhooks/clerk", () => {
     mockSquareCreate.mockReset();
     mockClerkGetUser.mockReset();
     mockClerkUpdateMetadata.mockReset();
+    mockLoyaltyAccSearch.mockReset();
+    mockLoyaltyAccCreate.mockReset();
   });
 
   describe("signature verification", () => {
@@ -214,6 +227,122 @@ describe("POST /api/webhooks/clerk", () => {
       expect(res.status).toBe(200);
       expect(mockSquareSearch).not.toHaveBeenCalled();
       expect(mockSquareCreate).not.toHaveBeenCalled();
+    });
+  });
+
+  // ===== US1 Loyalty: New user → enrolled in loyalty =====
+  describe("user.created — loyalty enrollment", () => {
+    const loyaltyAccount = { id: "LA_NEW", balance: 0 };
+
+    it("should create loyalty account for new user with phone", async () => {
+      mockVerify.mockReturnValueOnce(userPayload());
+      mockClerkGetUser.mockResolvedValue({ privateMetadata: {} });
+      mockSquareSearch.mockResolvedValue({ customers: [] });
+      mockSquareCreate.mockResolvedValue({
+        customer: { id: "SQ_NEW" },
+      });
+      mockClerkUpdateMetadata.mockResolvedValue({});
+      mockLoyaltyAccSearch.mockResolvedValue({ loyaltyAccounts: [] });
+      mockLoyaltyAccCreate.mockResolvedValue({ loyaltyAccount });
+
+      const res = await POST(buildRequest(userPayload()));
+
+      expect(res.status).toBe(200);
+      expect(mockLoyaltyAccSearch).toHaveBeenCalledWith({
+        query: { customerIds: ["SQ_NEW"] },
+        limit: 1,
+      });
+      expect(mockLoyaltyAccCreate).toHaveBeenCalledWith({
+        loyaltyAccount: {
+          programId: "prog_test_123",
+          customerId: "SQ_NEW",
+          mapping: { phoneNumber: "+15551234567" },
+        },
+        idempotencyKey: "loyalty-SQ_NEW",
+      });
+    });
+
+    it("should skip loyalty enrollment when user has no phone", async () => {
+      mockVerify.mockReturnValueOnce(
+        userPayload({ phone_numbers: [], primary_phone_number_id: null }),
+      );
+      mockClerkGetUser.mockResolvedValue({ privateMetadata: {} });
+      mockSquareSearch.mockResolvedValue({ customers: [] });
+      mockSquareCreate.mockResolvedValue({
+        customer: { id: "SQ_NOPHONE" },
+      });
+      mockClerkUpdateMetadata.mockResolvedValue({});
+
+      const spy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const res = await POST(
+        buildRequest(userPayload({ phone_numbers: [], primary_phone_number_id: null })),
+      );
+
+      expect(res.status).toBe(200);
+      expect(mockLoyaltyAccSearch).not.toHaveBeenCalled();
+      expect(mockLoyaltyAccCreate).not.toHaveBeenCalled();
+      spy.mockRestore();
+    });
+  });
+
+  // ===== US2 Loyalty: Idempotent — existing loyalty account =====
+  describe("user.created — existing loyalty account", () => {
+    it("should skip creation when loyalty account already exists", async () => {
+      mockVerify.mockReturnValueOnce(userPayload());
+      mockClerkGetUser.mockResolvedValue({ privateMetadata: {} });
+      mockSquareSearch.mockResolvedValue({ customers: [] });
+      mockSquareCreate.mockResolvedValue({
+        customer: { id: "SQ_NEW" },
+      });
+      mockClerkUpdateMetadata.mockResolvedValue({});
+      mockLoyaltyAccSearch.mockResolvedValue({
+        loyaltyAccounts: [{ id: "LA_EXIST", balance: 100 }],
+      });
+
+      const res = await POST(buildRequest(userPayload()));
+
+      expect(res.status).toBe(200);
+      expect(mockLoyaltyAccCreate).not.toHaveBeenCalled();
+    });
+  });
+
+  // ===== US3 Loyalty: Graceful degradation =====
+  describe("user.created — loyalty API errors", () => {
+    it("should return 200 when loyalty search fails", async () => {
+      mockVerify.mockReturnValueOnce(userPayload());
+      mockClerkGetUser.mockResolvedValue({ privateMetadata: {} });
+      mockSquareSearch.mockResolvedValue({ customers: [] });
+      mockSquareCreate.mockResolvedValue({
+        customer: { id: "SQ_NEW" },
+      });
+      mockClerkUpdateMetadata.mockResolvedValue({});
+      mockLoyaltyAccSearch.mockRejectedValue(new Error("Loyalty API down"));
+
+      const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const res = await POST(buildRequest(userPayload()));
+
+      expect(res.status).toBe(200);
+      expect(mockClerkUpdateMetadata).toHaveBeenCalled();
+      spy.mockRestore();
+    });
+
+    it("should return 200 when loyalty create fails", async () => {
+      mockVerify.mockReturnValueOnce(userPayload());
+      mockClerkGetUser.mockResolvedValue({ privateMetadata: {} });
+      mockSquareSearch.mockResolvedValue({ customers: [] });
+      mockSquareCreate.mockResolvedValue({
+        customer: { id: "SQ_NEW" },
+      });
+      mockClerkUpdateMetadata.mockResolvedValue({});
+      mockLoyaltyAccSearch.mockResolvedValue({ loyaltyAccounts: [] });
+      mockLoyaltyAccCreate.mockRejectedValue(new Error("Create failed"));
+
+      const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const res = await POST(buildRequest(userPayload()));
+
+      expect(res.status).toBe(200);
+      expect(mockClerkUpdateMetadata).toHaveBeenCalled();
+      spy.mockRestore();
     });
   });
 });

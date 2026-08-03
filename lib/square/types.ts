@@ -259,6 +259,11 @@ export interface ClerkWebhookEventPayload {
       email_address: string;
     }>;
     primary_email_address_id: string | null;
+    phone_numbers: Array<{
+      id: string;
+      phone_number: string;
+    }>;
+    primary_phone_number_id: string | null;
   };
 }
 

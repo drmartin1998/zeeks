@@ -7,6 +7,7 @@ const envSchema = z.object({
   SQUARE_LOCATION_ID: z.string().min(1, "SQUARE_LOCATION_ID is required"),
   SQUARE_APPLICATION_ID: z.string().min(1, "SQUARE_APPLICATION_ID is required"),
   CLERK_SECRET_KEY: z.string().min(1, "CLERK_SECRET_KEY is required"),
+  SQUARE_LOYALTY_PROGRAM_ID: z.string().optional(),
 });
 
 function validateEnv() {
@@ -15,6 +16,7 @@ function validateEnv() {
     SQUARE_LOCATION_ID: process.env.square_location_id,
     SQUARE_APPLICATION_ID: process.env.square_application_id,
     CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY,
+    SQUARE_LOYALTY_PROGRAM_ID: process.env.SQUARE_LOYALTY_PROGRAM_ID,
   });
 
   if (!parsed.success) {

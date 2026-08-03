@@ -12,6 +12,11 @@ import {
   setSquareCustomerId,
 } from "@/lib/webhooks/clerk";
 import { withRetry } from "@/lib/webhooks/retry";
+import {
+  isLoyaltyConfigured,
+  searchLoyaltyAccount,
+  createLoyaltyAccount,
+} from "@/lib/square/loyalty";
 
 const clerkWebhookSecret = process.env.CLERK_WEBHOOK_SECRET;
 
@@ -139,5 +144,71 @@ async function handleUserCreated(
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
+  // Enroll in loyalty program (non-blocking)
+  await enrollInLoyalty(squareCustomerId, userId, evt);
+
   return NextResponse.json({ success: true }, { status: 200 });
+}
+
+function extractPrimaryPhone(
+  evt: ClerkWebhookEventPayload,
+): string | null {
+  const phones = evt.data.phone_numbers;
+  if (!phones || phones.length === 0) return null;
+
+  if (evt.data.primary_phone_number_id) {
+    const primary = phones.find(
+      (p) => p.id === evt.data.primary_phone_number_id,
+    );
+    if (primary) return primary.phone_number;
+  }
+
+  return phones[0].phone_number ?? null;
+}
+
+async function enrollInLoyalty(
+  squareCustomerId: string,
+  userId: string,
+  evt: ClerkWebhookEventPayload,
+): Promise<void> {
+  if (!isLoyaltyConfigured()) {
+    console.warn(
+      `Loyalty enrollment skipped (no program configured) — user: ${userId}, squareCustomerId: ${squareCustomerId}`,
+    );
+    return;
+  }
+
+  const phone = extractPrimaryPhone(evt);
+  if (!phone) {
+    console.warn(
+      `Loyalty enrollment skipped (no phone number) — user: ${userId}, squareCustomerId: ${squareCustomerId}`,
+    );
+    return;
+  }
+
+  try {
+    const existing = await withRetry(() =>
+      searchLoyaltyAccount(squareCustomerId),
+    );
+
+    if (existing) {
+      console.log(
+        `Loyalty account already exists — user: ${userId}, squareCustomerId: ${squareCustomerId}, loyaltyAccountId: ${existing.id}`,
+      );
+      return;
+    }
+
+    const account = await withRetry(() =>
+      createLoyaltyAccount(squareCustomerId, phone),
+    );
+
+    console.log(
+      `Loyalty account created — user: ${userId}, squareCustomerId: ${squareCustomerId}, loyaltyAccountId: ${account?.id}`,
+    );
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "Unknown error";
+    console.error(
+      `Loyalty enrollment failed (non-blocking) — user: ${userId}, squareCustomerId: ${squareCustomerId}, error: ${msg}`,
+    );
+  }
 }

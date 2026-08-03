@@ -1,4 +1,5 @@
 import React from "react";
+import { vi } from "vitest";
 
 /**
  * Mock Clerk @clerk/nextjs components for integration testing.
@@ -20,6 +21,7 @@ export interface ClerkMockConfig {
     id: string;
     email: string;
     imageUrl?: string;
+    fullName?: string;
   };
 }
 
@@ -83,3 +85,19 @@ export const Show: React.FC<{
     ? React.createElement(React.Fragment, null, children)
     : null;
 };
+
+const mockSignOut = vi.fn();
+export function getMockSignOut() { return mockSignOut; }
+
+export const useUser = () => ({
+  user: mockConfig.signedIn && mockConfig.user ? {
+    id: mockConfig.user.id,
+    fullName: mockConfig.user.fullName ?? null,
+    primaryEmailAddress: mockConfig.user.email ? { emailAddress: mockConfig.user.email } : null,
+  } : null,
+  isLoaded: true,
+});
+
+export const useClerk = () => ({
+  signOut: mockSignOut,
+});

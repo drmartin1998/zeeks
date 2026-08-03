@@ -4,11 +4,13 @@ import { Component, useState } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { SignInButton, Show, UserButton } from "@clerk/nextjs";
+import { Show } from "@clerk/nextjs";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Search, ShoppingBag } from "lucide-react";
 import type { NavCategory } from "@/lib/square/types";
+import { AuthDropdown } from "@/components/auth/auth-dropdown";
+import { UserMenu } from "@/components/auth/user-menu";
 
 /** Error boundary catching Clerk component failures per FR-007. */
 class ClerkErrorBoundary extends Component<
@@ -95,15 +97,10 @@ export function NavBar({ categories }: NavBarProps) {
             }
           >
             <Show when="signed-in">
-              <UserButton />
+              <UserMenu />
             </Show>
             <Show when="signed-out">
-              <SignInButton mode="modal">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-white/70 hover:text-white transition-colors cursor-pointer">
-                  <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-                  <circle cx="12" cy="7" r="4" />
-                </svg>
-              </SignInButton>
+              <AuthDropdown />
             </Show>
           </ClerkErrorBoundary>
         </div>
