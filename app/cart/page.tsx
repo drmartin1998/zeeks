@@ -18,7 +18,7 @@ export default async function CartPage() {
     return (
       <div className="flex min-h-screen flex-col">
         <main className="flex-1">
-          <CartClient cart={null} error="Account setup in progress. Please try again shortly." />
+          <CartClient cart={null} error="Account setup in progress. Please try again shortly." squareCustomerId="" />
         </main>
         <Footer />
       </div>
@@ -37,7 +37,11 @@ export default async function CartPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <main className="flex-1">
-        <CartClient cart={cart} error={errorMessage} />
+        <CartClient
+          cart={cart}
+          error={errorMessage}
+          squareCustomerId={squareCustomerId}
+        />
       </main>
       <Footer />
     </div>

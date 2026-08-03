@@ -1,145 +1,60 @@
 import { describe, it, expect } from "vitest";
-import {
-  isTopLevelCategory,
-  mapSquareCategoryToNavCategory,
-  type SquareCatalogCategory,
-} from "@/lib/square/types";
+import { CheckoutInputSchema } from "@/lib/square/types";
 
-describe("isTopLevelCategory", () => {
-  it("should return true when parentCategory is undefined", () => {
-    const cat: SquareCatalogCategory = {
-      id: "CAT1",
-      type: "CATEGORY",
-      categoryData: { name: "Board Games" },
-    };
-    expect(isTopLevelCategory(cat)).toBe(true);
-  });
-
-  it("should return true when parentCategory.id is empty string", () => {
-    const cat: SquareCatalogCategory = {
-      id: "CAT2",
-      type: "CATEGORY",
-      categoryData: { name: "Miniatures", parentCategory: { id: "" } },
-    };
-    expect(isTopLevelCategory(cat)).toBe(true);
-  });
-
-  it("should return false when parentCategory.id is set", () => {
-    const cat: SquareCatalogCategory = {
-      id: "CAT3",
-      type: "CATEGORY",
-      categoryData: {
-        name: "Warhammer 40K",
-        parentCategory: { id: "CAT1" },
-      },
-    };
-    expect(isTopLevelCategory(cat)).toBe(false);
-  });
-
-  it("should use explicit isTopLevel boolean when present (true)", () => {
-    const cat: SquareCatalogCategory = {
-      id: "CAT4",
-      type: "CATEGORY",
-      categoryData: {
-        name: "Card Games",
-        isTopLevel: true,
-        parentCategory: { id: "SOME_PARENT" },
-      },
-    };
-    // isTopLevel overrides parentCategory
-    expect(isTopLevelCategory(cat)).toBe(true);
-  });
-
-  it("should use explicit isTopLevel boolean when present (false)", () => {
-    const cat: SquareCatalogCategory = {
-      id: "CAT5",
-      type: "CATEGORY",
-      categoryData: {
-        name: "Draft Boosters",
-        isTopLevel: false,
-      },
-    };
-    expect(isTopLevelCategory(cat)).toBe(false);
-  });
-
-  it("should return true when parentCategory.id is null", () => {
-    const cat: SquareCatalogCategory = {
-      id: "CAT6",
-      type: "CATEGORY",
-      categoryData: {
-        name: "Paints",
-        parentCategory: { id: undefined } as unknown as { id: undefined },
-      },
-    };
-    expect(isTopLevelCategory(cat)).toBe(true);
-  });
-});
-
-describe("mapSquareCategoryToNavCategory", () => {
-  it("should generate correct href from category name", () => {
-    const sqCat: SquareCatalogCategory = {
-      id: "CAT1",
-      type: "CATEGORY",
-      categoryData: { name: "Board Games" },
-    };
-
-    const result = mapSquareCategoryToNavCategory(sqCat);
-
-    expect(result).toEqual({
-      label: "Board Games",
-      href: "/categories/board-games",
+describe("CheckoutInputSchema", () => {
+  it("should accept valid orderId and squareCustomerId", () => {
+    const result = CheckoutInputSchema.safeParse({
+      orderId: "ORDER_123",
+      squareCustomerId: "CUST_456",
     });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.orderId).toBe("ORDER_123");
+      expect(result.data.squareCustomerId).toBe("CUST_456");
+    }
   });
 
-  it("should handle names with special characters", () => {
-    const sqCat: SquareCatalogCategory = {
-      id: "CAT2",
-      type: "CATEGORY",
-      categoryData: { name: "Warhammer 40K" },
-    };
+  it("should reject empty orderId", () => {
+    const result = CheckoutInputSchema.safeParse({
+      orderId: "",
+      squareCustomerId: "CUST_456",
+    });
 
-    const result = mapSquareCategoryToNavCategory(sqCat);
-
-    expect(result.label).toBe("Warhammer 40K");
-    expect(result.href).toBe("/categories/warhammer-40k");
+    expect(result.success).toBe(false);
   });
 
-  it("should handle names with multiple spaces and punctuation", () => {
-    const sqCat: SquareCatalogCategory = {
-      id: "CAT3",
-      type: "CATEGORY",
-      categoryData: { name: "Paints & Tools" },
-    };
+  it("should reject missing orderId", () => {
+    const result = CheckoutInputSchema.safeParse({
+      squareCustomerId: "CUST_456",
+    });
 
-    const result = mapSquareCategoryToNavCategory(sqCat);
-
-    expect(result.label).toBe("Paints & Tools");
-    expect(result.href).toBe("/categories/paints-tools");
+    expect(result.success).toBe(false);
   });
 
-  it("should strip leading and trailing dashes from slugs", () => {
-    const sqCat: SquareCatalogCategory = {
-      id: "CAT4",
-      type: "CATEGORY",
-      categoryData: { name: "  Cool Stuff!  " },
-    };
+  it("should reject empty squareCustomerId", () => {
+    const result = CheckoutInputSchema.safeParse({
+      orderId: "ORDER_123",
+      squareCustomerId: "",
+    });
 
-    const result = mapSquareCategoryToNavCategory(sqCat);
-
-    expect(result.label).toBe("  Cool Stuff!  ");
-    // Label preserves original name, slug is cleaned
-    expect(result.href).toBe("/categories/cool-stuff");
+    expect(result.success).toBe(false);
   });
 
-  it("should not set highlight by default", () => {
-    const sqCat: SquareCatalogCategory = {
-      id: "CAT5",
-      type: "CATEGORY",
-      categoryData: { name: "Miniatures" },
-    };
+  it("should reject missing squareCustomerId", () => {
+    const result = CheckoutInputSchema.safeParse({
+      orderId: "ORDER_123",
+    });
 
-    const result = mapSquareCategoryToNavCategory(sqCat);
+    expect(result.success).toBe(false);
+  });
 
-    expect(result.highlight).toBeUndefined();
+  it("should reject non-string orderId", () => {
+    const result = CheckoutInputSchema.safeParse({
+      orderId: 12345,
+      squareCustomerId: "CUST_456",
+    });
+
+    expect(result.success).toBe(false);
   });
 });

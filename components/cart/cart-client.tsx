@@ -10,9 +10,10 @@ import type { Cart as CartType } from "@/lib/square/types";
 interface CartClientProps {
   cart: CartType | null;
   error: string | null;
+  squareCustomerId: string;
 }
 
-export function CartClient({ cart, error }: CartClientProps) {
+export function CartClient({ cart, error, squareCustomerId }: CartClientProps) {
   if (error) {
     return (
       <div className="flex min-h-[50vh] flex-col items-center justify-center px-5">
@@ -75,6 +76,8 @@ export function CartClient({ cart, error }: CartClientProps) {
         <CartSummary
           subtotal={cart.subtotal}
           orderId={cart.orderId}
+          squareCustomerId={squareCustomerId}
+          hasUnavailable={cart.lineItems.some((item) => item.isUnavailable)}
         />
       </div>
     </div>

@@ -457,3 +457,37 @@ export interface GetCartResult {
   cart: Cart | null;
   error: string | null;
 }
+
+// ---------------------------------------------------------------------------
+// Checkout types (024-checkout-flow)
+// ---------------------------------------------------------------------------
+
+/** Input to the initiateCheckout server action. */
+export const CheckoutInputSchema = z.object({
+  orderId: z.string().min(1, "Order ID is required"),
+  squareCustomerId: z.string().min(1, "Customer ID is required"),
+});
+
+export type CheckoutInput = z.infer<typeof CheckoutInputSchema>;
+
+/** Result from the initiateCheckout server action. */
+export interface CheckoutResult {
+  success: boolean;
+  paymentLinkUrl: string | null;
+  error: string | null;
+  errorCode: string | null;
+}
+
+/** Payment link returned by Square's paymentLinks.create(). */
+export interface PaymentLink {
+  id: string;
+  url: string;
+  orderId: string;
+  version: number;
+}
+
+/** Query parameters from Square's return redirect. */
+export interface OrderResultParams {
+  status: "COMPLETED" | "CANCELLED" | null;
+  transactionId: string | null;
+}

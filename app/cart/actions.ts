@@ -6,7 +6,8 @@ import { getSquareCustomerId } from "@/lib/webhooks/clerk";
 import { ordersApi } from "@/lib/square/client";
 import { locationId } from "@/lib/square/client";
 import { findOrCreateDraftOrder } from "@/lib/square/cart";
-import type { AddToCartResult, CartMutationResult } from "@/lib/square/types";
+import { createPaymentLink } from "@/lib/square/checkout";
+import type { AddToCartResult, CartMutationResult, CheckoutResult } from "@/lib/square/types";
 
 export async function addToCart(
   _prevState: AddToCartResult | null,
@@ -354,4 +355,69 @@ export async function removeCartItem(
       error: error instanceof Error ? error.message : "Failed to remove cart item",
     };
   }
+}
+
+export async function initiateCheckout(
+  _prevState: CheckoutResult | null,
+  formData: FormData,
+): Promise<CheckoutResult> {
+  const { userId } = await auth();
+
+  if (!userId) {
+    return {
+      success: false,
+      paymentLinkUrl: null,
+      error: "Sign in required",
+      errorCode: "UNAUTHENTICATED",
+    };
+  }
+
+  const squareCustomerIdFromForm = formData.get("squareCustomerId") as string;
+  const orderId = formData.get("orderId") as string;
+
+  if (!orderId) {
+    return {
+      success: false,
+      paymentLinkUrl: null,
+      error: "No order to checkout",
+      errorCode: "EMPTY_CART",
+    };
+  }
+
+  const squareCustomerId = await getSquareCustomerId(userId);
+  if (!squareCustomerId) {
+    return {
+      success: false,
+      paymentLinkUrl: null,
+      error: "Account setup in progress. Please try again shortly.",
+      errorCode: "ACCOUNT_NOT_SYNCED",
+    };
+  }
+
+  void squareCustomerIdFromForm;
+
+  const baseUrl =
+    process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+
+  const returnUrl = `${baseUrl}/order/result`;
+
+  const result = await createPaymentLink(squareCustomerId, returnUrl);
+
+  if (!result.success) {
+    return {
+      success: false,
+      paymentLinkUrl: null,
+      error: result.error,
+      errorCode: result.errorCode,
+    };
+  }
+
+  return {
+    success: true,
+    paymentLinkUrl: result.paymentLink.url,
+    error: null,
+    errorCode: null,
+  };
 }

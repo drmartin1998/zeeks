@@ -1,12 +1,64 @@
+"use client";
+
+import { useActionState, useEffect } from "react";
+import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
+import { initiateCheckout } from "@/app/cart/actions";
+import type { CheckoutResult } from "@/lib/square/types";
 
 interface CartSummaryProps {
   subtotal: { amount: number; currency: string };
   orderId: string;
+  squareCustomerId: string;
+  hasUnavailable: boolean;
 }
 
-export function CartSummary({ subtotal }: CartSummaryProps) {
+function CheckoutButton({ disabled }: { disabled: boolean }) {
+  const { pending } = useFormStatus();
+
+  if (pending) {
+    return (
+      <Button
+        variant="primary"
+        className="w-full text-sm font-bold uppercase tracking-wide"
+        disabled
+        aria-label="Redirecting to checkout..."
+      >
+        Redirecting to checkout...
+      </Button>
+    );
+  }
+
+  return (
+    <Button
+      variant="primary"
+      className="w-full text-sm font-bold uppercase tracking-wide"
+      type="submit"
+      disabled={disabled}
+      aria-label="Proceed to Checkout"
+    >
+      Proceed to Checkout
+    </Button>
+  );
+}
+
+export function CartSummary({
+  subtotal,
+  orderId,
+  squareCustomerId,
+  hasUnavailable,
+}: CartSummaryProps) {
   const subtotalValue = (subtotal.amount / 100).toFixed(2);
+  const [state, formAction] = useActionState<CheckoutResult | null, FormData>(
+    initiateCheckout,
+    null,
+  );
+
+  useEffect(() => {
+    if (state?.success && state.paymentLinkUrl) {
+      window.location.href = state.paymentLinkUrl;
+    }
+  }, [state]);
 
   return (
     <div className="flex flex-col gap-6 rounded-2xl border border-[#CDCDD8] bg-[#F5F5F8] p-8">
@@ -38,9 +90,22 @@ export function CartSummary({ subtotal }: CartSummaryProps) {
         </div>
       </div>
 
-      <Button variant="primary" className="w-full text-sm font-bold uppercase tracking-wide">
-        Proceed to Checkout
-      </Button>
+      {hasUnavailable && (
+        <p className="text-sm text-red-600">
+          Some items in your cart are no longer available. Please remove them to
+          continue.
+        </p>
+      )}
+
+      <form action={formAction}>
+        <input type="hidden" name="orderId" value={orderId} />
+        <input
+          type="hidden"
+          name="squareCustomerId"
+          value={squareCustomerId}
+        />
+        <CheckoutButton disabled={hasUnavailable} />
+      </form>
     </div>
   );
 }
