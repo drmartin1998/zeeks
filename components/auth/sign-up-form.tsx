@@ -23,6 +23,42 @@ function normalizePhone(raw: string): string {
   return `+1${raw}`;
 }
 
+/**
+ * Consult signUp.verifications (populated after create) to find the
+ * first field that still needs verification, using a canonical order.
+ */
+interface VerificationStatus {
+  status: string;
+}
+
+interface ClerkVerifications {
+  emailAddress: VerificationStatus | null;
+  phoneNumber: VerificationStatus | null;
+}
+
+function findNextUnverified(
+  signUp: ReturnType<typeof useSignUp>["signUp"],
+): "email" | "phone" | null {
+  if (!signUp) return null;
+  const verifications = (signUp as unknown as { verifications: ClerkVerifications }).verifications;
+  if (!verifications) return null;
+  if (
+    verifications.emailAddress &&
+    (verifications.emailAddress.status === "unverified" ||
+      verifications.emailAddress.status === "transferable")
+  ) {
+    return "email";
+  }
+  if (
+    verifications.phoneNumber &&
+    (verifications.phoneNumber.status === "unverified" ||
+      verifications.phoneNumber.status === "transferable")
+  ) {
+    return "phone";
+  }
+  return null;
+}
+
 export function SignUpForm() {
   const router = useRouter();
   const { isLoaded, signUp, setActive } = useSignUp();
@@ -60,6 +96,12 @@ export function SignUpForm() {
     return errs;
   }
 
+  async function startVerification(target: "email" | "phone") {
+    const strategy = target === "email" ? "email_code" : ("phone_code" as const);
+    await signUp!.prepareVerification({ strategy });
+    setVerificationType(target);
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setApiError(null);
@@ -91,9 +133,14 @@ export function SignUpForm() {
       }
 
       if (result.status === "missing_requirements") {
-        await signUp.prepareVerification({ strategy: "email_code" });
-        setVerificationType("email");
+        const next = findNextUnverified(signUp);
+        if (next) {
+          await startVerification(next);
+        }
+        return;
       }
+
+      setApiError("Unexpected sign-up status. Please try again.");
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Unable to create account";
@@ -136,16 +183,18 @@ export function SignUpForm() {
       }
 
       if (result.status === "missing_requirements") {
-        if (
-          verificationType === "email" &&
-          result.verifications?.emailAddress?.status === "verified"
-        ) {
-          await signUp.prepareVerification({ strategy: "phone_code" });
-          setVerificationType("phone");
+        const next = findNextUnverified(signUp);
+        if (next) {
+          await startVerification(next);
           setVerificationCode("");
           setResendSuccess(false);
           return;
         }
+
+        setApiError(
+          "All verifications passed but sign-up is incomplete. Please try again.",
+        );
+        return;
       }
 
       setApiError("Verification failed. Please check your code and try again.");
