@@ -56,6 +56,7 @@ function findNextUnverified(
   if (verifications) {
     if (
       verifications.emailAddress &&
+      verifications.emailAddress.status !== "verified" &&
       (verifications.emailAddress.status === "unverified" ||
         verifications.emailAddress.status === "transferable")
     ) {
@@ -63,6 +64,7 @@ function findNextUnverified(
     }
     if (
       verifications.phoneNumber &&
+      verifications.phoneNumber.status !== "verified" &&
       (verifications.phoneNumber.status === "unverified" ||
         verifications.phoneNumber.status === "transferable")
     ) {
@@ -70,11 +72,11 @@ function findNextUnverified(
     }
   }
 
-  if (unverifiedFields?.includes("phone_number") && !verifications?.phoneNumber) {
-    return "phone";
-  }
-  if (unverifiedFields?.includes("email_address") && !verifications?.emailAddress) {
+  if (unverifiedFields?.includes("email_address")) {
     return "email";
+  }
+  if (unverifiedFields?.includes("phone_number")) {
+    return "phone";
   }
 
   const missingFields: string[] | null =
@@ -465,6 +467,8 @@ export function SignUpForm() {
             </p>
           )}
         </div>
+
+        <div id="clerk-captcha" />
 
         <Button type="submit" disabled={loading} className="w-full">
           {loading ? "Creating account..." : "Create Account"}
