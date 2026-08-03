@@ -62,21 +62,16 @@ specs/024-checkout-flow/
 
 ```text
 lib/square/
-├── client.ts            # ADD: export checkoutApi, paymentsApi
+├── client.ts            # ADD: export checkoutApi
 ├── types.ts             # ADD: CheckoutInput, CheckoutResult, PaymentLink types
 └── checkout.ts          # NEW: checkout server logic (create payment link, convert order)
 
 app/
 ├── cart/
 │   └── actions.ts       # ADD: initiateCheckout server action
-├── api/
-│   └── checkout/        # NEW (if Route Handler approach chosen)
-│       └── route.ts
 ├── order/               # NEW
-│   └── confirmation/
-│       └── page.tsx      # Order confirmation page
-│   └── cancelled/
-│       └── page.tsx      # Payment cancelled page
+│   └── result/
+│       └── page.tsx      # Single return page (reads ?status= param for confirmation/cancellation views)
 
 components/
 └── cart/

@@ -442,6 +442,7 @@ export interface AddToCartResult {
   success: boolean;
   lineItemCount: number;
   error: string | null;
+  guestOrderId?: string;
 }
 
 /** Result from cart mutation Server Actions (update/remove). */
@@ -465,7 +466,7 @@ export interface GetCartResult {
 /** Input to the initiateCheckout server action. */
 export const CheckoutInputSchema = z.object({
   orderId: z.string().min(1, "Order ID is required"),
-  squareCustomerId: z.string().min(1, "Customer ID is required"),
+  squareCustomerId: z.string().optional(),
 });
 
 export type CheckoutInput = z.infer<typeof CheckoutInputSchema>;

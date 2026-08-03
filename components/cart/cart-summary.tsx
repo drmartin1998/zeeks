@@ -9,7 +9,7 @@ import type { CheckoutResult } from "@/lib/square/types";
 interface CartSummaryProps {
   subtotal: { amount: number; currency: string };
   orderId: string;
-  squareCustomerId: string;
+  squareCustomerId: string | null;
   hasUnavailable: boolean;
 }
 
@@ -97,13 +97,19 @@ export function CartSummary({
         </p>
       )}
 
+      {state?.error && !state.success && (
+        <p className="text-sm text-red-600">{state.error}</p>
+      )}
+
       <form action={formAction}>
         <input type="hidden" name="orderId" value={orderId} />
-        <input
-          type="hidden"
-          name="squareCustomerId"
-          value={squareCustomerId}
-        />
+        {squareCustomerId && (
+          <input
+            type="hidden"
+            name="squareCustomerId"
+            value={squareCustomerId}
+          />
+        )}
         <CheckoutButton disabled={hasUnavailable} />
       </form>
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import { addToCart } from "@/app/cart/actions";
 import { Button } from "@/components/ui/button";
 import { ShoppingCart, Check } from "lucide-react";
@@ -32,6 +32,12 @@ export function AddToCartForm({
   size = "lg",
 }: AddToCartFormProps) {
   const [state, formAction, isPending] = useActionState(addToCart, initialState);
+
+  useEffect(() => {
+    if (state.guestOrderId) {
+      document.cookie = `guest-cart-order-id=${state.guestOrderId}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+    }
+  }, [state.guestOrderId]);
 
   if (outOfStock) {
     return (

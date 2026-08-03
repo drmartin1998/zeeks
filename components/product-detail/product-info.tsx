@@ -83,7 +83,7 @@ export function ProductInfo({
         {catalogObjectId ? (
           <AddToCartForm
             catalogObjectId={catalogObjectId}
-            variationId={variationId ?? catalogObjectId}
+            variationId={variationId && variationId !== catalogObjectId ? variationId : ""}
             quantity={quantity}
             outOfStock={isOutOfStock}
             disabled={!isOutOfStock && !catalogObjectId}

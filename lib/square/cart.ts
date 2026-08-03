@@ -9,11 +9,50 @@ interface FindDraftOrderResult {
 /**
  * Find an existing DRAFT order for the customer, or create a new one.
  * Returns the order ID of the existing or newly created draft order.
+ *
+ * Guest path: pass `null` for squareCustomerId and optionally an existingOrderId.
+ * Creates a DRAFT order WITHOUT a customerId for guests.
  */
 export async function findOrCreateDraftOrder(
+  squareCustomerId: string | null,
+  existingOrderId?: string,
+): Promise<{ orderId: string; idempotencyKey: string }> {
+  if (squareCustomerId !== null) {
+    return findOrCreateDraftOrderForCustomer(squareCustomerId);
+  }
+
+  if (existingOrderId) {
+    try {
+      const existingOrder = await ordersApi.get({ orderId: existingOrderId });
+      if (existingOrder.order?.id) {
+        return { orderId: existingOrder.order.id, idempotencyKey: crypto.randomUUID() };
+      }
+    } catch {
+      // Order not found or expired — fall through to create new
+    }
+  }
+
+  const idempotencyKey = crypto.randomUUID();
+  const response = await ordersApi.create({
+    order: {
+      locationId,
+      state: "DRAFT",
+    },
+    idempotencyKey,
+  });
+
+  const order = response.order;
+  if (!order?.id) {
+    throw new Error("Failed to create draft order");
+  }
+
+  return { orderId: order.id, idempotencyKey };
+}
+
+async function findOrCreateDraftOrderForCustomer(
   squareCustomerId: string,
 ): Promise<{ orderId: string; idempotencyKey: string }> {
-  const existing = await findExistingDraftOrder(squareCustomerId);
+  const existing = await findExistingDraftOrderByCustomer(squareCustomerId);
 
   if (existing) {
     return { orderId: existing.orderId, idempotencyKey: crypto.randomUUID() };
@@ -45,6 +84,12 @@ export async function findOrCreateDraftOrder(
 export async function findExistingDraftOrder(
   squareCustomerId: string,
 ): Promise<FindDraftOrderResult | null> {
+  return findExistingDraftOrderByCustomer(squareCustomerId);
+}
+
+async function findExistingDraftOrderByCustomer(
+  squareCustomerId: string,
+): Promise<FindDraftOrderResult | null> {
   const response = await ordersApi.search({
     locationIds: [locationId],
     query: {
@@ -72,28 +117,40 @@ export async function findExistingDraftOrder(
 }
 
 /**
- * Get the full cart for a customer.
- * Returns null if no draft order exists (empty cart).
+ * Get the full cart for a customer or guest.
+ * Auth path: pass squareCustomerId to search by customer.
+ * Guest path: pass null for squareCustomerId and an orderId to fetch directly.
  */
 export async function getCart(
-  squareCustomerId: string,
+  squareCustomerId: string | null,
+  orderId?: string,
 ): Promise<Cart | null> {
-  const existing = await findExistingDraftOrder(squareCustomerId);
-  if (!existing) {
-    console.log("getCart: no existing draft order found");
+  let targetOrderId: string | undefined;
+
+  if (orderId) {
+    targetOrderId = orderId;
+  } else if (squareCustomerId) {
+    const existing = await findExistingDraftOrderByCustomer(squareCustomerId);
+    if (!existing) {
+      console.log("getCart: no existing draft order found");
+      return null;
+    }
+    targetOrderId = existing.orderId;
+  } else {
+    console.log("getCart: no squareCustomerId or orderId provided");
     return null;
   }
 
-  const response = await ordersApi.get({ orderId: existing.orderId });
+  const response = await ordersApi.get({ orderId: targetOrderId });
   const order = response.order;
   if (!order) {
-    console.log("getCart: order not found for id", existing.orderId);
+    console.log("getCart: order not found for id", targetOrderId);
     return null;
   }
 
   const rawLineItems = (order.lineItems as unknown as Array<{ uid?: string | null }>) ?? [];
   console.log("getCart: fetched order", {
-    orderId: existing.orderId,
+    orderId: targetOrderId,
     version: order.version,
     lineItemCount: rawLineItems.length,
     lineItemUids: rawLineItems.map((li) => li.uid),
@@ -103,21 +160,34 @@ export async function getCart(
 }
 
 /**
- * Get just the cart item count for a customer.
+ * Get just the cart item count for a customer or guest.
+ * Auth path: pass squareCustomerId.
+ * Guest path: pass null for squareCustomerId and an orderId.
  * Returns 0 if no draft order or no items. Returns -1 on error.
  */
 export async function getCartItemCount(
-  squareCustomerId: string,
+  squareCustomerId: string | null,
+  orderId?: string,
 ): Promise<number> {
   try {
-    const existing = await findExistingDraftOrder(squareCustomerId);
-    if (!existing) {
-      console.log("getCartItemCount: no draft order, returning 0");
+    let targetOrderId: string | undefined;
+
+    if (orderId) {
+      targetOrderId = orderId;
+    } else if (squareCustomerId) {
+      const existing = await findExistingDraftOrderByCustomer(squareCustomerId);
+      if (!existing) {
+        console.log("getCartItemCount: no draft order, returning 0");
+        return 0;
+      }
+      targetOrderId = existing.orderId;
+    } else {
       return 0;
     }
-    const response = await ordersApi.get({ orderId: existing.orderId });
+
+    const response = await ordersApi.get({ orderId: targetOrderId });
     const lineItems = response.order?.lineItems ?? [];
-    console.log("getCartItemCount:", { orderId: existing.orderId, count: lineItems.length });
+    console.log("getCartItemCount:", { orderId: targetOrderId, count: lineItems.length });
     return lineItems.length;
   } catch (error) {
     console.error("getCartItemCount failed:", error);

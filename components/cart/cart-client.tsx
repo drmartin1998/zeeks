@@ -1,19 +1,22 @@
 "use client";
 
+import { useState } from "react";
 import { CartLineItem } from "@/components/cart/cart-line-item";
 import { CartSummary } from "@/components/cart/cart-summary";
 import { ShoppingBag } from "lucide-react";
 import NextLink from "next/link";
 import { Button } from "@/components/ui/button";
+import { clearCart } from "@/app/cart/actions";
 import type { Cart as CartType } from "@/lib/square/types";
 
 interface CartClientProps {
   cart: CartType | null;
   error: string | null;
-  squareCustomerId: string;
+  squareCustomerId: string | null;
 }
 
 export function CartClient({ cart, error, squareCustomerId }: CartClientProps) {
+  const [clearing, setClearing] = useState(false);
   if (error) {
     return (
       <div className="flex min-h-[50vh] flex-col items-center justify-center px-5">
@@ -58,6 +61,18 @@ export function CartClient({ cart, error, squareCustomerId }: CartClientProps) {
           <h1 className="font-heading text-[32px] font-black leading-[40px] text-text-primary">
             Shopping Cart
           </h1>
+          <button
+            onClick={async () => {
+              setClearing(true);
+              await clearCart(cart.orderId);
+              setClearing(false);
+              window.location.reload();
+            }}
+            disabled={clearing}
+            className="text-sm text-text-muted underline hover:text-text-primary disabled:opacity-50"
+          >
+            {clearing ? "Clearing..." : "Clear Cart"}
+          </button>
         </div>
 
         <div className="flex flex-col gap-6">

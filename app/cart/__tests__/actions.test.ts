@@ -48,17 +48,29 @@ vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));
 
+const mockGetGuestCartOrderId = vi.fn();
+const mockSetGuestCartOrderId = vi.fn();
+const mockClearGuestCartOrderId = vi.fn();
+
+vi.mock("@/lib/square/cookies", () => ({
+  getGuestCartOrderId: (...args: unknown[]) => mockGetGuestCartOrderId(...args),
+  setGuestCartOrderId: (...args: unknown[]) => mockSetGuestCartOrderId(...args),
+  clearGuestCartOrderId: (...args: unknown[]) => mockClearGuestCartOrderId(...args),
+}));
+
 const { initiateCheckout } = await import("@/app/cart/actions");
 
 beforeEach(() => {
   vi.clearAllMocks();
   mockGetSquareCustomerId.mockReset();
   mockCreatePaymentLink.mockReset();
+  mockGetGuestCartOrderId.mockReset();
   mockUserId = "user_123";
+  mockGetGuestCartOrderId.mockResolvedValue(undefined);
 });
 
 describe("initiateCheckout server action", () => {
-  it("should redirect to sign-in when user is not authenticated", async () => {
+  it("should return empty cart error when unauthenticated and no guest cookie", async () => {
     mockUserId = null;
 
     const formData = new FormData();
@@ -67,7 +79,7 @@ describe("initiateCheckout server action", () => {
     const result = await initiateCheckout(null, formData);
 
     expect(result.success).toBe(false);
-    expect(result.error).toBe("Sign in required");
+    expect(result.error).toBe("Your cart is empty");
     expect(mockCreatePaymentLink).not.toHaveBeenCalled();
   });
 
@@ -115,10 +127,11 @@ describe("initiateCheckout server action", () => {
 
     expect(result.success).toBe(true);
     expect(result.paymentLinkUrl).toBe("https://square.link/u/abc123");
-    expect(mockCreatePaymentLink).toHaveBeenCalledWith(
-      "CUST_456",
-      expect.stringContaining("/order/result"),
-    );
+    expect(mockCreatePaymentLink).toHaveBeenCalledWith({
+      squareCustomerId: "CUST_456",
+      orderId: "ORDER_123",
+      returnUrl: expect.stringContaining("/order/result"),
+    });
   });
 
   it("should return error when createPaymentLink fails with empty cart", async () => {

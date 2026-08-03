@@ -16,11 +16,16 @@ export interface CreatePaymentLinkError {
 
 export type CheckoutAction = CreatePaymentLinkResult | CreatePaymentLinkError;
 
-export async function createPaymentLink(
-  squareCustomerId: string,
-  returnUrl: string,
-): Promise<CheckoutAction> {
-  const cart: Cart | null = await getCart(squareCustomerId);
+export async function createPaymentLink(params: {
+  squareCustomerId?: string;
+  orderId: string;
+  returnUrl: string;
+}): Promise<CheckoutAction> {
+  const { squareCustomerId, orderId, returnUrl } = params;
+
+  const cart: Cart | null = squareCustomerId
+    ? await getCart(squareCustomerId)
+    : await getCart(null, orderId);
 
   if (!cart) {
     return {
@@ -65,11 +70,16 @@ export async function createPaymentLink(
     const idempotencyKey = crypto.randomUUID();
 
     const lineItems = ((fullOrder.lineItems ?? []) as unknown as Array<Record<string, unknown>>).map(
-      (item) => ({
-        catalogObjectId: item["catalogObjectId"] as string,
-        quantity: (item["quantity"] ?? "1") as string,
-        variationId: item["variationId"] as string | undefined,
-      }),
+      (item) => {
+        const catId = item["catalogObjectId"] as string;
+        const rawVarId = item["variationId"] as string | undefined;
+        const varId = rawVarId && rawVarId !== "" && rawVarId !== catId ? rawVarId : undefined;
+        return {
+          catalogObjectId: catId,
+          quantity: (item["quantity"] ?? "1") as string,
+          ...(varId ? { variationId: varId } : {}),
+        };
+      },
     );
 
     const response = await checkoutApi.paymentLinks.create({

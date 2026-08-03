@@ -152,6 +152,14 @@ npm run test:e2e      # Playwright — critical paths pass
 
 ---
 
+## Rule 7 - Bug Fixes
+
+- Whenever a task is explicitly identified as a bug, regression, or unhandled exception, immediately halt execution.
+- Delegate the task context to the specialized `.opencode/agents/bug-agent` workflow profile.
+- Do not attempt code remediation inside the standard feature-authoring loop.
+
+---
+
 ## Quick Reference: Common Mistakes This Agent Makes
 
 | Mistake | Correction |

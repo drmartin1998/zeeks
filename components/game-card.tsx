@@ -89,8 +89,8 @@ export function GameCard({
           </NextLink>
         ) : catalogObjectId ? (
           <AddToCartForm
-            catalogObjectId={catalogObjectId}
-            variationId={variationId ?? catalogObjectId}
+            catalogObjectId={variationId || catalogObjectId}
+            variationId=""
             quantity={1}
             className="w-full"
             size="lg"

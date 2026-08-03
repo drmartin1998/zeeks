@@ -27,7 +27,7 @@ critical paths only. Tests MUST be written FIRST and FAIL before implementation.
 
 **Purpose**: Square API client exports and type definitions needed by all stories
 
-- [x] T001 Export `checkoutApi` and `paymentsApi` from Square client in `lib/square/client.ts`
+- [x] T001 Export `checkoutApi` from Square client in `lib/square/client.ts`
 - [x] T002 [P] Add `CheckoutInput`, `CheckoutResult`, `PaymentLink`, and `OrderResult` types with Zod validation schemas in `lib/square/types.ts`
 
 ---
