@@ -13,7 +13,6 @@ import { fetchAllCategories } from "@/lib/square/catalog";
 const STATIC_NAV_CATEGORIES: NavCategory[] = [
   { label: "About Us", href: "/about" },
   { label: "Locations", href: "/locations" },
-  { label: "Sale", href: "/categories/sale", highlight: true },
 ];
 
 /**

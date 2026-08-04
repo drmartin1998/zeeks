@@ -18,11 +18,10 @@ describe("getNavCategories error handling", () => {
 
     const categories = await getNavCategories();
 
-    // STATIC_NAV_CATEGORIES are: About Us, Locations, Sale
+    // STATIC_NAV_CATEGORIES are: About Us, Locations
     expect(categories).toEqual([
       { label: "About Us", href: "/about" },
       { label: "Locations", href: "/locations" },
-      { label: "Sale", href: "/categories/sale", highlight: true },
     ]);
 
     // Verify no mock product categories (Miniatures, Board Games, etc.) are in the result
