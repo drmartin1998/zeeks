@@ -8,9 +8,10 @@ import { Show } from "@clerk/nextjs";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Search, ShoppingBag } from "lucide-react";
-import type { NavCategory } from "@/lib/square/types";
+import type { NavCategory, LocationBarData } from "@/lib/square/types";
 import { AuthDropdown } from "@/components/auth/auth-dropdown";
 import { UserMenu } from "@/components/auth/user-menu";
+import { LocationBar } from "@/components/location-bar";
 
 /** Error boundary catching Clerk component failures per FR-007. */
 class ClerkErrorBoundary extends Component<
@@ -39,9 +40,11 @@ interface NavBarProps {
   categories: NavCategory[];
   /** Number of items in the customer's cart. 0 = empty, -1 = error/unknown. Omit to hide badge entirely. */
   cartItemCount?: number;
+  /** Location bar data from Square Locations API. Null when unavailable — bar is hidden. */
+  locationData?: LocationBarData | null;
 }
 
-export function NavBar({ categories, cartItemCount }: NavBarProps) {
+export function NavBar({ categories, cartItemCount, locationData }: NavBarProps) {
   const navItems = categories;
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
@@ -136,6 +139,9 @@ export function NavBar({ categories, cartItemCount }: NavBarProps) {
           ))}
         </div>
       </div>
+
+      {/* Location bar */}
+      <LocationBar locationData={locationData ?? null} />
     </header>
   );
 }

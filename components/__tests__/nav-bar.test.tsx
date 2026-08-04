@@ -21,7 +21,7 @@ vi.mock("@clerk/nextjs", async () => {
 });
 
 import { NavBar } from "@/components/nav-bar";
-import type { NavCategory } from "@/lib/square/types";
+import type { NavCategory, LocationBarData } from "@/lib/square/types";
 
 const mockSquareCategories: NavCategory[] = [
   { label: "Board Games", href: "/categories/board-games" },
@@ -178,5 +178,76 @@ describe("NavBar — Auth (US3): Session Persistence", () => {
     expect(
       screen.getByRole("button", { name: "Account menu" })
     ).toBeInTheDocument();
+  });
+});
+
+// ============================================================
+// Location Bar Integration (001-nav-location-bar)
+// ============================================================
+
+describe("NavBar — Location Bar", () => {
+  beforeEach(() => {
+    setClerkMockConfig({ signedIn: false });
+  });
+
+  const locationData: LocationBarData = {
+    cityState: "Seattle, WA",
+    hoursDisplay: "Open today: 9 AM \u2013 9 PM",
+    status: "open",
+    statusText: "Open Now",
+  };
+
+  it("should render LocationBar with cityState when locationData is provided", () => {
+    render(<NavBar categories={[]} locationData={locationData} />);
+    expect(screen.getByText("Seattle, WA")).toBeInTheDocument();
+  });
+
+  it("should render LocationBar with hours when locationData is provided", () => {
+    render(<NavBar categories={[]} locationData={locationData} />);
+    expect(
+      screen.getByText("Open today: 9 AM \u2013 9 PM")
+    ).toBeInTheDocument();
+  });
+
+  it("should render LocationBar with status text when locationData is provided", () => {
+    render(<NavBar categories={[]} locationData={locationData} />);
+    expect(screen.getByText("Open Now")).toBeInTheDocument();
+  });
+
+  it("should not render store location text when locationData is null", () => {
+    render(<NavBar categories={[]} locationData={null} />);
+    expect(screen.queryByText("Seattle, WA")).not.toBeInTheDocument();
+  });
+
+  it("should still render categories when locationData is null", () => {
+    render(
+      <NavBar
+        categories={[{ label: "Board Games", href: "/categories/board-games" }]}
+        locationData={null}
+      />
+    );
+    expect(
+      screen.getByRole("link", { name: "Board Games" })
+    ).toBeInTheDocument();
+  });
+
+  it("should render closing-soon status", () => {
+    render(
+      <NavBar
+        categories={[]}
+        locationData={{ ...locationData, status: "closing-soon", statusText: "Closing Soon" }}
+      />
+    );
+    expect(screen.getByText("Closing Soon")).toBeInTheDocument();
+  });
+
+  it("should render closed status", () => {
+    render(
+      <NavBar
+        categories={[]}
+        locationData={{ ...locationData, status: "closed", statusText: "Closed Now" }}
+      />
+    );
+    expect(screen.getByText("Closed Now")).toBeInTheDocument();
   });
 });

@@ -492,3 +492,27 @@ export interface OrderResultParams {
   status: "COMPLETED" | "CANCELLED" | null;
   transactionId: string | null;
 }
+
+// ---------------------------------------------------------------------------
+// Navigation Location Bar types (001-nav-location-bar)
+// ---------------------------------------------------------------------------
+
+export interface SquareLocationHours {
+  dayOfWeek: string;
+  startLocalTime: string;
+  endLocalTime: string;
+}
+
+export interface LocationBarData {
+  cityState: string;
+  hoursDisplay: string;
+  status: "open" | "closing-soon" | "closed" | "closed-today";
+  statusText: string;
+}
+
+export const LocationBarDataSchema = z.object({
+  cityState: z.string().min(1),
+  hoursDisplay: z.string().min(1),
+  status: z.enum(["open", "closing-soon", "closed", "closed-today"]),
+  statusText: z.string().min(1),
+});

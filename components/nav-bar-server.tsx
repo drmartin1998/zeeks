@@ -1,19 +1,21 @@
 import { getNavCategories } from "@/lib/data/categories";
+import { getLocationBarData } from "@/lib/data/locations";
 import { NavBar } from "@/components/nav-bar";
 import { auth } from "@clerk/nextjs/server";
 import { getSquareCustomerId } from "@/lib/webhooks/clerk";
 import { getCartItemCount } from "@/lib/square/cart";
 import { getGuestCartOrderId } from "@/lib/square/cookies";
 
-/**
- * Server Component wrapper for the NavBar.
- *
- * Fetches category data from Square on the server and
- * passes it to the client-side NavBar component.
- * Also fetches the cart item count for both authenticated users and guests.
- */
 export async function NavBarServer() {
-  const categories = await getNavCategories();
+  const [categoriesResult, locationResult] = await Promise.allSettled([
+    getNavCategories(),
+    getLocationBarData(),
+  ]);
+
+  const categories =
+    categoriesResult.status === "fulfilled" ? categoriesResult.value : [];
+  const locationData =
+    locationResult.status === "fulfilled" ? locationResult.value : null;
 
   let cartItemCount: number | undefined;
 
@@ -37,5 +39,11 @@ export async function NavBarServer() {
     console.error("NavBarServer: failed to fetch cart count:", error);
   }
 
-  return <NavBar categories={categories} cartItemCount={cartItemCount} />;
+  return (
+    <NavBar
+      categories={categories}
+      cartItemCount={cartItemCount}
+      locationData={locationData}
+    />
+  );
 }
