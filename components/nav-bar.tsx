@@ -60,7 +60,7 @@ export function NavBar({ categories, cartItemCount, locationData }: NavBarProps)
   return (
     <header
       className={cn(
-        "sticky top-0 z-50 w-full overflow-x-hidden",
+        "w-full overflow-x-hidden",
         "bg-neutral-900",
         "shadow-[0_6px_18px_-6px_rgba(14,14,44,0.05)]"
       )}

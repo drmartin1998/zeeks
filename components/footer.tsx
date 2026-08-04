@@ -9,6 +9,10 @@ const FOOTER_LINKS = {
   Company: ["About Us"],
 };
 
+const FOOTER_URLS: Record<string, string> = {
+  "About Us": "/about",
+};
+
 const SOCIAL_LINKS = ["discord", "twitter", "instagram", "youtube"];
 
 export function Footer() {
@@ -54,7 +58,7 @@ export function Footer() {
                 {links.map((link) => (
                   <li key={link}>
                     <Link
-                      href="#"
+                      href={FOOTER_URLS[link] ?? "#"}
                       className="text-sm text-white/50 transition-colors hover:text-white"
                     >
                       {link}
