@@ -1,64 +1,37 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
-import { useFormStatus } from "react-dom";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { initiateCheckout } from "@/app/cart/actions";
-import type { CheckoutResult } from "@/lib/square/types";
+import { Sparkles } from "lucide-react";
+import NextLink from "next/link";
 
 interface CartSummaryProps {
   subtotal: { amount: number; currency: string };
-  orderId: string;
-  squareCustomerId: string | null;
   hasUnavailable: boolean;
-}
-
-function CheckoutButton({ disabled }: { disabled: boolean }) {
-  const { pending } = useFormStatus();
-
-  if (pending) {
-    return (
-      <Button
-        variant="primary"
-        className="w-full text-sm font-bold uppercase tracking-wide"
-        disabled
-        aria-label="Redirecting to checkout..."
-      >
-        Redirecting to checkout...
-      </Button>
-    );
-  }
-
-  return (
-    <Button
-      variant="primary"
-      className="w-full text-sm font-bold uppercase tracking-wide"
-      type="submit"
-      disabled={disabled}
-      aria-label="Proceed to Checkout"
-    >
-      Proceed to Checkout
-    </Button>
-  );
+  hasReward?: boolean;
 }
 
 export function CartSummary({
   subtotal,
-  orderId,
-  squareCustomerId,
   hasUnavailable,
+  hasReward = false,
 }: CartSummaryProps) {
   const subtotalValue = (subtotal.amount / 100).toFixed(2);
-  const [state, formAction] = useActionState<CheckoutResult | null, FormData>(
-    initiateCheckout,
-    null,
-  );
+  const [checkoutHref, setCheckoutHref] = useState("/checkout");
 
   useEffect(() => {
-    if (state?.success && state.paymentLinkUrl) {
-      window.location.href = state.paymentLinkUrl;
+    function updateHref() {
+      const href = new URL("/checkout", window.location.origin);
+      const tierInput = document.getElementById("checkout-reward-tier-id") as HTMLInputElement | null;
+      const accountInput = document.getElementById("checkout-loyalty-account-id") as HTMLInputElement | null;
+      if (tierInput?.value) href.searchParams.set("rewardTierId", tierInput.value);
+      if (accountInput?.value) href.searchParams.set("loyaltyAccountId", accountInput.value);
+      setCheckoutHref(href.pathname + href.search);
     }
-  }, [state]);
+    updateHref();
+    const interval = setInterval(updateHref, 300);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="flex flex-col gap-6 rounded-2xl border border-[#CDCDD8] bg-[#F5F5F8] p-8">
@@ -97,21 +70,26 @@ export function CartSummary({
         </p>
       )}
 
-      {state?.error && !state.success && (
-        <p className="text-sm text-red-600">{state.error}</p>
+      {hasReward && (
+        <div className="flex items-center gap-2 rounded-lg bg-white px-3 py-3">
+          <Sparkles className="h-4 w-4 shrink-0 text-orange-500" />
+          <p className="text-xs font-semibold text-text-primary">
+            Rewards will be applied at checkout
+          </p>
+        </div>
       )}
 
-      <form action={formAction}>
-        <input type="hidden" name="orderId" value={orderId} />
-        {squareCustomerId && (
-          <input
-            type="hidden"
-            name="squareCustomerId"
-            value={squareCustomerId}
-          />
-        )}
-        <CheckoutButton disabled={hasUnavailable} />
-      </form>
+      <NextLink href={checkoutHref}>
+        <Button
+          variant="primary"
+          className="w-full text-sm font-bold uppercase tracking-wide"
+          type="button"
+          disabled={hasUnavailable}
+          aria-label="Proceed to Checkout"
+        >
+          Proceed to Checkout
+        </Button>
+      </NextLink>
     </div>
   );
 }

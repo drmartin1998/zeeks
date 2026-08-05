@@ -6,6 +6,9 @@ import { getGuestCartOrderId, clearGuestCartOrderId } from "@/lib/square/cookies
 import { transferGuestCartToCustomer } from "@/lib/square/cart-transfer";
 import { ordersApi } from "@/lib/square/client";
 import { CartClient } from "@/components/cart/cart-client";
+import { LoyaltyPanel } from "@/components/cart/loyalty-panel/loyalty-panel";
+import { EarnedPointsNotice } from "@/components/cart/earned-points-notice";
+import { getFirstIssuedReward, fetchLoyaltyAccount } from "@/lib/square/loyalty";
 import type { Cart } from "@/lib/square/types";
 
 export default async function CartPage() {
@@ -36,11 +39,24 @@ export default async function CartPage() {
 
     let cart: Cart | null = null;
     let errorMessage: string | null = null;
+    let hasReward = false;
 
     try {
       cart = await getCart(squareCustomerId);
     } catch (error) {
       errorMessage = error instanceof Error ? error.message : "Failed to load cart";
+    }
+
+    if (cart?.orderId) {
+      try {
+        const account = await fetchLoyaltyAccount(squareCustomerId);
+        if (account) {
+          const reward = await getFirstIssuedReward(account.id);
+          hasReward = reward !== null;
+        }
+      } catch {
+        // non-blocking
+      }
     }
 
     return (
@@ -50,6 +66,23 @@ export default async function CartPage() {
             cart={cart}
             error={errorMessage}
             squareCustomerId={squareCustomerId}
+            hasReward={hasReward}
+            loyaltyPanel={
+              squareCustomerId && cart?.orderId ? (
+                <LoyaltyPanel
+                  squareCustomerId={squareCustomerId}
+                  orderId={cart.orderId}
+                />
+              ) : null
+            }
+            earnedPointsNotice={
+              squareCustomerId && cart?.orderId ? (
+                <EarnedPointsNotice
+                  squareCustomerId={squareCustomerId}
+                  orderId={cart.orderId}
+                />
+              ) : null
+            }
           />
         </main>
         <Footer />

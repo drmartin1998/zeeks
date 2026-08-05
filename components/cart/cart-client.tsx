@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { CartLineItem } from "@/components/cart/cart-line-item";
 import { CartSummary } from "@/components/cart/cart-summary";
 import { ShoppingBag } from "lucide-react";
@@ -13,9 +13,19 @@ interface CartClientProps {
   cart: CartType | null;
   error: string | null;
   squareCustomerId: string | null;
+  loyaltyPanel?: ReactNode;
+  earnedPointsNotice?: ReactNode;
+  hasReward?: boolean;
 }
 
-export function CartClient({ cart, error, squareCustomerId }: CartClientProps) {
+export function CartClient({
+  cart,
+  error,
+  squareCustomerId,
+  loyaltyPanel,
+  earnedPointsNotice,
+  hasReward = false,
+}: CartClientProps) {
   const [clearing, setClearing] = useState(false);
   if (error) {
     return (
@@ -53,7 +63,7 @@ export function CartClient({ cart, error, squareCustomerId }: CartClientProps) {
 
   return (
     <div
-      className="mx-auto flex max-w-[1440px] flex-col gap-16 px-20 pt-16 pb-[100px] lg:flex-row"
+      className="mx-auto flex max-w-[1440px] flex-col gap-16 px-5 pt-16 pb-[100px] sm:px-10 lg:flex-row lg:px-20"
     >
       {/* Cart Items Column */}
       <div className="flex w-full flex-col gap-8 lg:w-[800px]">
@@ -84,16 +94,18 @@ export function CartClient({ cart, error, squareCustomerId }: CartClientProps) {
             />
           ))}
         </div>
+
+        {loyaltyPanel}
       </div>
 
       {/* Order Summary Sidebar */}
-      <div className="lg:w-[416px]">
+      <div className="flex flex-col gap-4 lg:w-[416px]">
         <CartSummary
           subtotal={cart.subtotal}
-          orderId={cart.orderId}
-          squareCustomerId={squareCustomerId}
           hasUnavailable={cart.lineItems.some((item) => item.isUnavailable)}
+          hasReward={hasReward}
         />
+        {earnedPointsNotice}
       </div>
     </div>
   );

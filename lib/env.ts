@@ -12,11 +12,16 @@ const envSchema = z.object({
 
 function validateEnv() {
   const parsed = envSchema.safeParse({
-    SQUARE_ACCESS_TOKEN: process.env.square_access_token,
-    SQUARE_LOCATION_ID: process.env.square_location_id,
-    SQUARE_APPLICATION_ID: process.env.square_application_id,
-    CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY,
-    SQUARE_LOYALTY_PROGRAM_ID: process.env.SQUARE_LOYALTY_PROGRAM_ID,
+    SQUARE_ACCESS_TOKEN:
+      process.env.square_access_token || process.env.SQUARE_ACCESS_TOKEN,
+    SQUARE_LOCATION_ID:
+      process.env.square_location_id || process.env.SQUARE_LOCATION_ID,
+    SQUARE_APPLICATION_ID:
+      process.env.square_application_id || process.env.SQUARE_APPLICATION_ID,
+    CLERK_SECRET_KEY:
+      process.env.CLERK_SECRET_KEY,
+    SQUARE_LOYALTY_PROGRAM_ID:
+      process.env.SQUARE_LOYALTY_PROGRAM_ID,
   });
 
   if (!parsed.success) {

@@ -516,3 +516,97 @@ export const LocationBarDataSchema = z.object({
   status: z.enum(["open", "closing-soon", "closed", "closed-today"]),
   statusText: z.string().min(1),
 });
+
+// ---------------------------------------------------------------------------
+// Loyalty / Rewards Redemption types (027-rewards-redemption)
+// ---------------------------------------------------------------------------
+
+export interface LoyaltyAccount {
+  id: string;
+  balance: number;
+  lifetimePoints: number;
+  customerId: string;
+  programId: string;
+  enrolledAt: string | null;
+}
+
+export interface RewardTier {
+  id: string;
+  name: string;
+  points: number;
+  description: string | null;
+  discountType: "FIXED_AMOUNT" | "FIXED_PERCENTAGE" | null;
+  discountAmount: number | null;
+  discountPercentage: string | null;
+}
+
+export interface LoyaltyReward {
+  id: string;
+  status: "ISSUED" | "REDEEMED" | "DELETED";
+  loyaltyAccountId: string;
+  rewardTierId: string;
+  points: number;
+  orderId: string | null;
+  createdAt: string;
+}
+
+export interface LoyaltyProgramDetail {
+  id: string;
+  status: string;
+  rewardTiers: RewardTier[];
+}
+
+export interface EarnedPoints {
+  points: number | null;
+  error: string | null;
+}
+
+export interface LoyaltyPanelData {
+  account: LoyaltyAccount | null;
+  program: LoyaltyProgramDetail | null;
+  activeReward: LoyaltyReward | null;
+  earnedPoints: EarnedPoints | null;
+  error: string | null;
+}
+
+export const PaymentFormSchema = z.object({
+  sourceId: z.string().min(1, "Payment token is required"),
+  orderId: z.string().min(1),
+  rewardTierId: z.string().optional().or(z.literal("")),
+  loyaltyAccountId: z.string().optional().or(z.literal("")),
+  billingName: z.string().min(1, "Name is required"),
+  billingAddressLine1: z.string().min(1, "Address is required"),
+  billingCity: z.string().min(1, "City is required"),
+  billingState: z.string().length(2, "Use 2-letter state code"),
+  billingPostalCode: z.string().min(5, "Valid ZIP code is required"),
+  squareCustomerId: z.string().min(1),
+});
+
+export type PaymentFormInput = z.infer<typeof PaymentFormSchema>;
+
+export interface PaymentResult {
+  success: boolean;
+  transactionId: string | null;
+  orderId: string | null;
+  error: string | null;
+  errorCode: string | null;
+}
+
+export interface CheckoutData {
+  order: Cart | null;
+  loyaltyData: LoyaltyPanelData | null;
+  profile: CustomerProfile | null;
+  error: string | null;
+}
+
+export interface SelectRewardResult {
+  success: boolean;
+  rewardId?: string;
+  error?: string;
+}
+
+export interface DeselectRewardResult {
+  success: boolean;
+  error?: string;
+}
+
