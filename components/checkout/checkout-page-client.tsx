@@ -5,6 +5,7 @@ import { ChevronLeft } from "lucide-react";
 import { OrderSummary } from "@/components/checkout/order-summary";
 import { CustomerInfo } from "@/components/checkout/customer-info";
 import { PaymentForm } from "@/components/checkout/payment-form";
+import { bankersRound } from "@/lib/utils";
 import type { CheckoutData, RewardTier } from "@/lib/square/types";
 
 interface CheckoutPageClientProps {
@@ -37,7 +38,7 @@ export function CheckoutPageClient({ data, selectedRewardTier, squareAppId, squa
     } else if (selectedRewardTier.discountType === "FIXED_PERCENTAGE" && selectedRewardTier.discountPercentage != null) {
       const pct = parseFloat(selectedRewardTier.discountPercentage);
       rewardDiscountLabel = selectedRewardTier.name;
-      rewardDiscountAmount = Math.round(order.subtotal.amount * (pct / 100));
+      rewardDiscountAmount = bankersRound(order.subtotal.amount * (pct / 100));
     }
   }
 
