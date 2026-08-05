@@ -158,7 +158,7 @@ export function SignUpForm() {
 
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
-        router.back();
+        window.location.href = "/";
         return;
       }
 
@@ -205,7 +205,7 @@ export function SignUpForm() {
       if (result.status === "complete") {
         try {
           await setActive({ session: result.createdSessionId });
-          router.back();
+          window.location.href = "/";
         } catch {
           router.push("/sign-in");
         }
