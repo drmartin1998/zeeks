@@ -6,13 +6,21 @@ import { getSquareCustomerId } from "@/lib/webhooks/clerk";
 import { ordersApi } from "@/lib/square/client";
 import { locationId } from "@/lib/square/client";
 import { findOrCreateDraftOrder } from "@/lib/square/cart";
-import { createPaymentLink } from "@/lib/square/checkout";
 import {
   getGuestCartOrderId,
   setGuestCartOrderId,
   clearGuestCartOrderId,
 } from "@/lib/square/cookies";
-import type { AddToCartResult, CartMutationResult, CheckoutResult } from "@/lib/square/types";
+import { createLoyaltyReward, deleteLoyaltyReward, getFirstIssuedReward, cleanupStaleRewards } from "@/lib/square/loyalty";
+import { processCardPayment } from "@/lib/square/payments";
+import { PaymentFormSchema } from "@/lib/square/types";
+import type {
+  AddToCartResult,
+  CartMutationResult,
+  PaymentResult,
+  SelectRewardResult,
+  DeselectRewardResult,
+} from "@/lib/square/types";
 
 export async function addToCart(
   _prevState: AddToCartResult | null,
@@ -342,11 +350,11 @@ export async function removeCartItem(
     }
 
     try {
-      let order = (await ordersApi.get({ orderId })).order;
+      const order = (await ordersApi.get({ orderId })).order;
       if (!order) {
         return { success: false, lineItems: [], subtotal: { amount: 0, currency: "USD" }, error: "Order not found" };
       }
-      let existingVersion = order.version ?? 1;
+      const existingVersion = order.version ?? 1;
       const existingLineItems = (order.lineItems ?? []) as Array<{
         catalogObjectId?: string;
         uid?: string;
@@ -406,12 +414,12 @@ export async function removeCartItem(
   }
 
   try {
-    let order = (await ordersApi.get({ orderId })).order;
+    const order = (await ordersApi.get({ orderId })).order;
     if (!order) {
       console.error("removeCartItem: order not found", { orderId });
       return { success: false, lineItems: [], subtotal: { amount: 0, currency: "USD" }, error: "Order not found" };
     }
-    let existingVersion = order.version ?? 1;
+    const existingVersion = order.version ?? 1;
     const existingLineItems = (order.lineItems ?? []) as Array<{
       catalogObjectId?: string;
       uid?: string;
@@ -460,86 +468,140 @@ export async function removeCartItem(
   }
 }
 
-export async function initiateCheckout(
-  _prevState: CheckoutResult | null,
+export async function processPayment(
+  _prevState: PaymentResult | null,
   formData: FormData,
-): Promise<CheckoutResult> {
+): Promise<PaymentResult> {
+  const parsed = PaymentFormSchema.safeParse({
+    sourceId: formData.get("sourceId"),
+    orderId: formData.get("orderId"),
+    rewardTierId: formData.get("rewardTierId") || undefined,
+    loyaltyAccountId: formData.get("loyaltyAccountId") || undefined,
+    billingName: formData.get("billingName"),
+    billingAddressLine1: formData.get("billingAddressLine1"),
+    billingCity: formData.get("billingCity"),
+    billingState: formData.get("billingState"),
+    billingPostalCode: formData.get("billingPostalCode"),
+    squareCustomerId: formData.get("squareCustomerId"),
+  });
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      transactionId: null,
+      orderId: null,
+      error: parsed.error.issues[0]?.message ?? "Invalid input",
+      errorCode: "VALIDATION",
+    };
+  }
+
   const { userId } = await auth();
-  const orderId = formData.get("orderId") as string;
-
-  if (!orderId) {
-    return {
-      success: false,
-      paymentLinkUrl: null,
-      error: "No order to checkout",
-      errorCode: "EMPTY_CART",
-    };
+  if (!userId) {
+    return { success: false, transactionId: null, orderId: null, error: "Please sign in", errorCode: "UNAUTHORIZED" };
   }
 
-  const baseUrl =
-    process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const { sourceId, orderId, rewardTierId, loyaltyAccountId, billingName, billingAddressLine1, billingCity, billingState, billingPostalCode, squareCustomerId } = parsed.data;
 
-  const returnUrl = `${baseUrl}/order/result`;
-
-  if (userId) {
-    const squareCustomerId = await getSquareCustomerId(userId);
-    if (!squareCustomerId) {
-      return {
-        success: false,
-        paymentLinkUrl: null,
-        error: "Account setup in progress. Please try again shortly.",
-        errorCode: "ACCOUNT_NOT_SYNCED",
-      };
+  try {
+    const orderResp = await ordersApi.get({ orderId });
+    const order = orderResp.order;
+    if (!order || order.state !== "DRAFT") {
+      return { success: false, transactionId: null, orderId: null, error: "This order cannot be processed", errorCode: "INVALID_ORDER" };
     }
 
-    const result = await createPaymentLink({ squareCustomerId, orderId, returnUrl });
+    await ordersApi.update({
+      orderId,
+      idempotencyKey: crypto.randomUUID(),
+      order: {
+        locationId,
+        version: order.version ?? 1,
+        state: "OPEN",
+      },
+      fieldsToClear: [],
+    });
 
-    if (!result.success) {
-      return {
-        success: false,
-        paymentLinkUrl: null,
-        error: result.error,
-        errorCode: result.errorCode,
-      };
+    if (rewardTierId && loyaltyAccountId) {
+      const existingReward = await getFirstIssuedReward(loyaltyAccountId);
+      if (existingReward) {
+        if (existingReward.rewardTierId !== rewardTierId) {
+          await deleteLoyaltyReward(existingReward.id);
+          const rewardResult = await createLoyaltyReward(orderId, loyaltyAccountId, rewardTierId);
+          if (!rewardResult.success) {
+            return { success: false, transactionId: null, orderId: null, error: rewardResult.error ?? "Failed to apply reward", errorCode: "REWARD_FAILED" };
+          }
+        }
+      } else {
+        const rewardResult = await createLoyaltyReward(orderId, loyaltyAccountId, rewardTierId);
+        if (!rewardResult.success) {
+          return { success: false, transactionId: null, orderId: null, error: rewardResult.error ?? "Failed to apply reward", errorCode: "REWARD_FAILED" };
+        }
+      }
     }
 
-    return {
-      success: true,
-      paymentLinkUrl: result.paymentLink.url,
-      error: null,
-      errorCode: null,
-    };
+    const updatedOrder = await ordersApi.get({ orderId });
+    const total = updatedOrder.order?.totalMoney as unknown as { amount?: bigint | number } | undefined;
+    const amountCents = Number(total?.amount ?? 0);
+
+    const paymentResult = await processCardPayment({
+      sourceId,
+      orderId,
+      amountCents,
+      squareCustomerId,
+      billingName,
+      billingAddressLine1,
+      billingCity,
+      billingState,
+      billingPostalCode,
+    });
+
+    if (!paymentResult.success) {
+      return { success: false, transactionId: null, orderId: null, error: paymentResult.error ?? "Payment failed", errorCode: "PAYMENT_FAILED" };
+    }
+
+    revalidatePath("/cart");
+
+    return { success: true, transactionId: paymentResult.transactionId ?? null, orderId, error: null, errorCode: null };
+  } catch (error) {
+    return { success: false, transactionId: null, orderId: null, error: error instanceof Error ? error.message : "Checkout failed", errorCode: "CHECKOUT_FAILED" };
+  }
+}
+
+export async function selectReward(
+  loyaltyAccountId: string,
+  rewardTierId: string,
+): Promise<SelectRewardResult> {
+  const { userId } = await auth();
+  if (!userId) {
+    return { success: false, error: "Please sign in to redeem rewards" };
+  }
+  if (!loyaltyAccountId || !rewardTierId) {
+    return { success: false, error: "Invalid reward selection" };
   }
 
-  const guestOrderId = await getGuestCartOrderId();
-  if (!guestOrderId) {
-    return {
-      success: false,
-      paymentLinkUrl: null,
-      error: "Your cart is empty",
-      errorCode: "EMPTY_CART",
-    };
-  }
+  await cleanupStaleRewards(loyaltyAccountId);
 
-  const result = await createPaymentLink({ orderId, returnUrl });
-
-  if (!result.success) {
-    return {
-      success: false,
-      paymentLinkUrl: null,
-      error: result.error,
-      errorCode: result.errorCode,
-    };
-  }
-
+  const result = await createLoyaltyReward("", loyaltyAccountId, rewardTierId);
+  revalidatePath("/cart");
   return {
-    success: true,
-    paymentLinkUrl: result.paymentLink.url,
-    error: null,
-    errorCode: null,
+    success: result.success,
+    rewardId: result.reward?.id,
+    error: result.error,
   };
+}
+
+export async function deselectReward(
+  rewardId: string,
+): Promise<DeselectRewardResult> {
+  const { userId } = await auth();
+  if (!userId) {
+    return { success: false, error: "Please sign in to manage rewards" };
+  }
+  if (!rewardId) {
+    return { success: false, error: "Invalid reward deselect" };
+  }
+  const result = await deleteLoyaltyReward(rewardId);
+  revalidatePath("/cart");
+  return result;
 }
 
 export async function clearCart(
@@ -584,3 +646,4 @@ export async function clearCart(
     };
   }
 }
+

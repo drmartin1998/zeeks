@@ -5,6 +5,15 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export function bankersRound(value: number): number {
+  const whole = Math.trunc(value);
+  const fraction = value - whole;
+  if (fraction === 0.5) {
+    return whole % 2 === 0 ? whole : whole + 1;
+  }
+  return Math.round(value);
+}
+
 // ---------------------------------------------------------------------------
 // Retry utility with exponential backoff
 // ---------------------------------------------------------------------------
