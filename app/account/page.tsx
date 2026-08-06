@@ -61,7 +61,7 @@ export default async function AccountPage() {
   return (
     <div className="flex min-h-screen flex-col overflow-x-hidden">
       <main className="flex-1 overflow-x-hidden">
-        <div className="mx-auto max-w-[1440px] px-20 py-12">
+        <div className="mx-auto max-w-[1440px] px-4 pt-6 pb-6 sm:px-10 sm:pt-8 sm:pb-10 lg:px-20 lg:pt-12 lg:pb-20">
           <nav aria-label="Breadcrumb" className="mb-6">
             <ol className="flex flex-wrap items-center gap-1 text-sm text-gray-500">
               <li>
@@ -73,7 +73,7 @@ export default async function AccountPage() {
               <li className="font-medium text-[#0E0E2C]">Account</li>
             </ol>
           </nav>
-          <div className="flex flex-col gap-10">
+          <div className="flex flex-col gap-6 md:gap-8 lg:gap-10">
             <ProfileHeaderCard
               profile={data.profile}
               error={data.profileError}

@@ -11,7 +11,11 @@ interface FieldErrors {
   password?: string;
 }
 
-export function SignInForm() {
+interface SignInFormProps {
+  returnTo?: string;
+}
+
+export function SignInForm({ returnTo = "/" }: SignInFormProps) {
   const { isLoaded, signIn, setActive } = useSignIn();
 
   const [email, setEmail] = useState("");
@@ -54,7 +58,7 @@ export function SignInForm() {
 
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
-        window.location.href = "/";
+        window.location.href = returnTo;
         return;
       }
 
@@ -128,7 +132,7 @@ export function SignInForm() {
 
       if (result.status === "complete" && result.createdSessionId) {
         await setActive({ session: result.createdSessionId });
-        window.location.href = "/";
+        window.location.href = returnTo;
         return;
       }
 

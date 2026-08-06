@@ -15,6 +15,7 @@ interface CartClientProps {
   squareCustomerId: string | null;
   loyaltyPanel?: ReactNode;
   earnedPointsNotice?: ReactNode;
+  guestLoyaltyPrompt?: ReactNode;
   hasReward?: boolean;
 }
 
@@ -24,6 +25,7 @@ export function CartClient({
   squareCustomerId,
   loyaltyPanel,
   earnedPointsNotice,
+  guestLoyaltyPrompt,
   hasReward = false,
 }: CartClientProps) {
   const [clearing, setClearing] = useState(false);
@@ -96,6 +98,8 @@ export function CartClient({
         </div>
 
         {loyaltyPanel}
+
+        {guestLoyaltyPrompt}
       </div>
 
       {/* Order Summary Sidebar */}

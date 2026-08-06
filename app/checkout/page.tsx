@@ -5,6 +5,7 @@ import { getSquareCustomerId } from "@/lib/webhooks/clerk";
 import { getCart } from "@/lib/square/cart";
 import { getLoyaltyPanelData } from "@/lib/square/loyalty";
 import { customersApi } from "@/lib/square/client";
+import { getGuestCartOrderId } from "@/lib/square/cookies";
 import { CheckoutSkeleton } from "@/components/checkout/checkout-skeleton";
 import { CheckoutPageClient } from "@/components/checkout/checkout-page-client";
 import type { CheckoutData, CustomerProfile, RewardTier } from "@/lib/square/types";
@@ -15,7 +16,42 @@ interface Props {
 
 export default async function CheckoutPage({ searchParams }: Props) {
   const { userId } = await auth();
-  if (!userId) redirect("/sign-in");
+  const isGuest = !userId;
+
+  const params = await searchParams;
+  const squareAppId = process.env.square_application_id || process.env.SQUARE_APPLICATION_ID || "";
+  const squareLocId = process.env.square_location_id || process.env.SQUARE_LOCATION_ID || "";
+  const isLoyaltyConfigured = !!process.env.SQUARE_LOYALTY_PROGRAM_ID;
+
+  if (isGuest) {
+    const guestOrderId = await getGuestCartOrderId();
+    if (!guestOrderId) redirect("/cart");
+
+    const cart = await getCart(null, guestOrderId);
+    if (!cart || cart.lineItems.length === 0) redirect("/cart");
+
+    const checkoutData: CheckoutData = {
+      order: cart,
+      loyaltyData: null,
+      profile: null,
+      error: null,
+    };
+
+    return (
+      <div className="min-h-screen bg-white">
+        <Suspense fallback={<CheckoutSkeleton />}>
+          <CheckoutPageClient
+            data={checkoutData}
+            selectedRewardTier={null}
+            squareAppId={squareAppId}
+            squareLocId={squareLocId}
+            isGuest={true}
+            isLoyaltyConfigured={isLoyaltyConfigured}
+          />
+        </Suspense>
+      </div>
+    );
+  }
 
   const squareCustomerId = await getSquareCustomerId(userId);
   if (!squareCustomerId) {
@@ -28,8 +64,6 @@ export default async function CheckoutPage({ searchParams }: Props) {
 
   const cart = await getCart(squareCustomerId);
   if (!cart || cart.lineItems.length === 0) redirect("/cart");
-
-  const params = await searchParams;
 
   const [loyaltyDataResult, profileResult] = await Promise.allSettled([
     getLoyaltyPanelData(squareCustomerId, cart.orderId),
@@ -64,13 +98,17 @@ export default async function CheckoutPage({ searchParams }: Props) {
     error: null,
   };
 
-  const squareAppId = process.env.square_application_id || process.env.SQUARE_APPLICATION_ID || "";
-  const squareLocId = process.env.square_location_id || process.env.SQUARE_LOCATION_ID || "";
-
   return (
     <div className="min-h-screen bg-white">
       <Suspense fallback={<CheckoutSkeleton />}>
-        <CheckoutPageClient data={checkoutData} selectedRewardTier={selectedRewardTier} squareAppId={squareAppId} squareLocId={squareLocId} />
+          <CheckoutPageClient
+            data={checkoutData}
+            selectedRewardTier={selectedRewardTier}
+            squareAppId={squareAppId}
+            squareLocId={squareLocId}
+            isGuest={false}
+            isLoyaltyConfigured={isLoyaltyConfigured}
+          />
       </Suspense>
     </div>
   );

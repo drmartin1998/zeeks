@@ -5,8 +5,8 @@ interface LoyaltyCardProps {
 
 export function LoyaltyCard({ balance, error }: LoyaltyCardProps) {
   return (
-    <div className="flex flex-col gap-6 rounded-[20px] border border-border bg-card p-8 shadow-[0_4px_16px_rgba(14,14,44,0.04)]">
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-4 rounded-[20px] border border-border bg-card p-4 shadow-[0_4px_16px_rgba(14,14,44,0.04)] sm:gap-5 sm:p-6 lg:gap-6 lg:p-8">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="font-heading text-2xl font-extrabold text-primary">
           Zeeks Rewards
         </h2>

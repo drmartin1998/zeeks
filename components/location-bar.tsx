@@ -22,19 +22,22 @@ export function LocationBar({ locationData }: LocationBarProps) {
   return (
     <div className="border-t border-border-default bg-surface-secondary">
       <div
-        className="mx-auto flex max-w-[1440px] items-center gap-6 px-4 py-2 text-sm text-text-muted lg:px-20"
+        className="mx-auto flex max-w-[1440px] items-center gap-2 px-4 py-1.5 text-xs text-text-muted lg:px-20"
         aria-label={`Store location: ${locationData.cityState}. ${locationData.status !== "closed-today" ? locationData.hoursDisplay + ". " : ""}${locationData.statusText}`}
       >
-        <span className="flex items-center gap-1.5 font-medium text-text-primary">
-          <Building2 className="h-4 w-4" aria-hidden="true" />
+        <span className="flex items-center gap-1.5 font-semibold text-text-primary">
+          <Building2 className="h-3.5 w-3.5" aria-hidden="true" />
           {locationData.cityState}
         </span>
         {locationData.status !== "closed-today" && (
-          <span>{locationData.hoursDisplay}</span>
+          <>
+            <span aria-hidden="true">·</span>
+            <span>{locationData.hoursDisplay}</span>
+          </>
         )}
         <span className="flex items-center gap-1.5">
           <span
-            className={`inline-block h-2 w-2 rounded-full ${statusDotColor}`}
+            className={`inline-block h-1.5 w-1.5 rounded-full ${statusDotColor}`}
             aria-hidden="true"
           />
           <span className="font-medium">{locationData.statusText}</span>

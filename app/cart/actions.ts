@@ -496,9 +496,6 @@ export async function processPayment(
   }
 
   const { userId } = await auth();
-  if (!userId) {
-    return { success: false, transactionId: null, orderId: null, error: "Please sign in", errorCode: "UNAUTHORIZED" };
-  }
 
   const { sourceId, orderId, rewardTierId, loyaltyAccountId, billingName, billingAddressLine1, billingCity, billingState, billingPostalCode, squareCustomerId } = parsed.data;
 
@@ -645,5 +642,20 @@ export async function clearCart(
       error: error instanceof Error ? error.message : "Failed to clear cart",
     };
   }
+}
+
+/**
+ * Removes the lingering guest cart cookie.
+ *
+ * `cookies().delete` is only permitted inside a Server Action or Route Handler —
+ * not during a Server Component render. The `/cart` page performs the guest →
+ * authenticated customer transfer during render (which only touches the Square
+ * Orders API) and then defers the cookie deletion here, invoked client-side on
+ * mount after the page has rendered.
+ *
+ * Safe to call unconditionally: deleting an absent cookie is a no-op.
+ */
+export async function clearGuestCartCookie(): Promise<void> {
+  await clearGuestCartOrderId();
 }
 
