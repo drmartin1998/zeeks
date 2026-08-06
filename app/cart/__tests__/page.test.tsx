@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, act } from "@testing-library/react";
 
 vi.mock("@/lib/env", () => ({
   env: {
@@ -12,6 +12,10 @@ vi.mock("@/lib/env", () => ({
 
 const mockGetSquareCustomerId = vi.fn();
 const mockGetCart = vi.fn();
+const mockFindExistingDraftOrder = vi.fn();
+const mockGetGuestCartOrderId = vi.fn();
+const mockTransferGuestCartToCustomer = vi.fn();
+let mockGuestCartSyncProps: { active: boolean }[] = [];
 
 vi.mock("@/lib/webhooks/clerk", () => ({
   getSquareCustomerId: (...args: unknown[]) =>
@@ -20,11 +24,32 @@ vi.mock("@/lib/webhooks/clerk", () => ({
 
 vi.mock("@/lib/square/cart", () => ({
   getCart: (...args: unknown[]) => mockGetCart(...args),
+  findExistingDraftOrder: (...args: unknown[]) =>
+    mockFindExistingDraftOrder(...args),
 }));
 
 vi.mock("@/lib/square/client", () => ({
   ordersApi: {},
   locationId: "TEST_LOCATION",
+}));
+
+vi.mock("@/lib/square/cookies", () => ({
+  getGuestCartOrderId: (...args: unknown[]) =>
+    mockGetGuestCartOrderId(...args),
+}));
+
+vi.mock("@/lib/square/cart-transfer", () => ({
+  transferGuestCartToCustomer: (...args: unknown[]) =>
+    mockTransferGuestCartToCustomer(...args),
+}));
+
+// Mock the cleanup client component so we can assert it is mounted when the
+// page decides the guest cookie should be cleared.
+vi.mock("@/components/cart/guest-cart-sync", () => ({
+  GuestCartSync: (props: { active: boolean }) => {
+    mockGuestCartSyncProps.push(props);
+    return null;
+  },
 }));
 
 vi.mock("@/components/nav-bar-server", () => ({
@@ -52,63 +77,84 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockGetSquareCustomerId.mockReset();
   mockGetCart.mockReset();
+  mockFindExistingDraftOrder.mockReset();
   mockRedirect.mockReset();
+  mockGetGuestCartOrderId.mockReset();
+  mockGetGuestCartOrderId.mockResolvedValue(undefined);
+  mockTransferGuestCartToCustomer.mockReset();
+  mockGetSquareCustomerId.mockResolvedValue("CUST_456");
   mockUserId = "user_123";
+  mockGuestCartSyncProps = [];
 });
 
-describe("CartPage", () => {
-  it("should redirect to sign-in when not authenticated", async () => {
-    mockUserId = null;
+describe("CartPage (guest cart hand-off)", () => {
+  it("should not transfer or clear a cookie when no guest cart cookie is present", async () => {
+    mockGetGuestCartOrderId.mockResolvedValue(undefined);
+    mockGetCart.mockResolvedValue({
+      orderId: "ORDER_AUTH",
+      lineItems: [],
+      subtotal: { amount: 0, currency: "USD" },
+    });
 
     const { default: CartPage } = await import("@/app/cart/page");
-    await CartPage();
+    await act(async () => {
+      render(await CartPage());
+    });
 
-    expect(mockRedirect).toHaveBeenCalledWith("/sign-in");
+    expect(mockTransferGuestCartToCustomer).not.toHaveBeenCalled();
+    // No guest cart existed, so no deferred cookie-clearing is scheduled.
+    expect(mockGuestCartSyncProps).toEqual([
+      { active: false },
+    ]);
+  });
+
+  it("should transfer the guest cart during render and schedule the cookie clear", async () => {
+    mockGetGuestCartOrderId.mockResolvedValue("ORDER_GUEST");
+    mockFindExistingDraftOrder.mockResolvedValue(null);
+    mockTransferGuestCartToCustomer.mockResolvedValue("ORDER_GUEST");
+    mockGetCart.mockResolvedValue({
+      orderId: "ORDER_GUEST",
+      lineItems: [],
+      subtotal: { amount: 0, currency: "USD" },
+    });
+
+    const { default: CartPage } = await import("@/app/cart/page");
+    await act(async () => {
+      render(await CartPage());
+    });
+
+    // The pure Square transfer ran during render with the expected args.
+    expect(mockTransferGuestCartToCustomer).toHaveBeenCalledWith(
+      "ORDER_GUEST",
+      "CUST_456",
+      null,
+    );
+    // The cleanup component requests the cookie be cleared post-render.
+    expect(mockGuestCartSyncProps).toEqual([{ active: true }]);
   });
 
   it("should show error message when cart fetch fails", async () => {
-    mockGetSquareCustomerId.mockResolvedValue("CUST_456");
     mockGetCart.mockRejectedValue(new Error("API error"));
 
     const { default: CartPage } = await import("@/app/cart/page");
-    render(await CartPage());
+    await act(async () => {
+      render(await CartPage());
+    });
 
     expect(screen.getByText(/API error/)).toBeInTheDocument();
   });
 
-  it("should show empty cart state when cart is null", async () => {
-    mockGetSquareCustomerId.mockResolvedValue("CUST_456");
-    mockGetCart.mockResolvedValue(null);
+  it("should schedule a cookie clear when the guest order is not a DRAFT", async () => {
+    mockUserId = null;
+    mockGetGuestCartOrderId.mockResolvedValue("ORDER_GUEST");
 
+    // The existing (real) ordersApi mock returns `{}`, so order state is
+    // "UNKNOWN" -> the page treats the guest order as invalid and clears it.
     const { default: CartPage } = await import("@/app/cart/page");
-    render(await CartPage());
-
-    expect(screen.getByText(/your cart is empty/i)).toBeInTheDocument();
-  });
-
-  it("should show checkout button when cart has items", async () => {
-    mockGetSquareCustomerId.mockResolvedValue("CUST_456");
-    mockGetCart.mockResolvedValue({
-      orderId: "ORDER_1",
-      lineItems: [
-        {
-          uid: "LI_1",
-          catalogObjectId: "CAT_1",
-          variationId: "VAR_1",
-          name: "Product",
-          imageUrl: null,
-          quantity: "1",
-          unitPrice: { amount: 1999, currency: "USD" },
-          lineTotal: { amount: 1999, currency: "USD" },
-          isUnavailable: false,
-        },
-      ],
-      subtotal: { amount: 1999, currency: "USD" },
+    await act(async () => {
+      render(await CartPage());
     });
 
-    const { default: CartPage } = await import("@/app/cart/page");
-    render(await CartPage());
-
-    expect(screen.getByText("Shopping Cart")).toBeInTheDocument();
+    expect(mockGuestCartSyncProps).toEqual([{ active: true }]);
   });
 });

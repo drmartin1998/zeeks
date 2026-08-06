@@ -1,6 +1,5 @@
 import { ordersApi } from "@/lib/square/client";
 import { locationId } from "@/lib/square/client";
-import { clearGuestCartOrderId } from "@/lib/square/cookies";
 
 /**
  * Transfer a guest cart to an authenticated customer on sign-in.
@@ -10,6 +9,11 @@ import { clearGuestCartOrderId } from "@/lib/square/cookies";
  * has a DRAFT order, line items are merged.
  *
  * Returns the resulting order ID (the existing auth order, or the transferred guest order).
+ *
+ * NOTE: This function performs ONLY square order operations. It deliberately
+ * does NOT touch cookies, so it is safe to call from a Server Component render.
+ * Clearing the guest cart cookie must happen in a Server Action / Route Handler
+ * (see `app/cart/actions.ts`) because `cookies()` cannot be mutated during render.
  */
 export async function transferGuestCartToCustomer(
   guestOrderId: string,
@@ -74,7 +78,6 @@ export async function transferGuestCartToCustomer(
       fieldsToClear: [],
     });
 
-    await clearGuestCartOrderId();
     return existingAuthOrderId;
   }
 
@@ -89,6 +92,5 @@ export async function transferGuestCartToCustomer(
     fieldsToClear: [],
   });
 
-  await clearGuestCartOrderId();
   return guestOrderId;
 }

@@ -5,6 +5,7 @@ import { ChevronLeft } from "lucide-react";
 import { OrderSummary } from "@/components/checkout/order-summary";
 import { CustomerInfo } from "@/components/checkout/customer-info";
 import { PaymentForm } from "@/components/checkout/payment-form";
+import { GuestLoyaltyNotification } from "@/components/checkout/guest-loyalty-notification";
 import { bankersRound } from "@/lib/utils";
 import type { CheckoutData, RewardTier } from "@/lib/square/types";
 
@@ -13,9 +14,11 @@ interface CheckoutPageClientProps {
   selectedRewardTier: RewardTier | null;
   squareAppId: string;
   squareLocId: string;
+  isGuest?: boolean;
+  isLoyaltyConfigured?: boolean;
 }
 
-export function CheckoutPageClient({ data, selectedRewardTier, squareAppId, squareLocId }: CheckoutPageClientProps) {
+export function CheckoutPageClient({ data, selectedRewardTier, squareAppId, squareLocId, isGuest = false, isLoyaltyConfigured = false }: CheckoutPageClientProps) {
   const { order, loyaltyData, profile } = data;
 
   if (!order || order.lineItems.length === 0) {
@@ -56,6 +59,15 @@ export function CheckoutPageClient({ data, selectedRewardTier, squareAppId, squa
           <ChevronLeft className="h-4 w-4" />
           Back to Cart
         </NextLink>
+
+        {isGuest && order && order.lineItems.length > 0 && (
+          <GuestLoyaltyNotification
+            isGuest={isGuest}
+            cartIsNonEmpty
+            checkoutPath="/checkout"
+            isLoyaltyConfigured={isLoyaltyConfigured}
+          />
+        )}
 
         <div className="flex flex-col gap-6">
           <OrderSummary

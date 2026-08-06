@@ -88,7 +88,11 @@ function findNextUnverified(
   return null;
 }
 
-export function SignUpForm() {
+interface SignUpFormProps {
+  returnTo?: string;
+}
+
+export function SignUpForm({ returnTo = "/" }: SignUpFormProps) {
   const router = useRouter();
   const { isLoaded, signUp, setActive } = useSignUp();
 
@@ -158,7 +162,7 @@ export function SignUpForm() {
 
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
-        window.location.href = "/";
+        window.location.href = returnTo;
         return;
       }
 
@@ -205,7 +209,7 @@ export function SignUpForm() {
       if (result.status === "complete") {
         try {
           await setActive({ session: result.createdSessionId });
-          window.location.href = "/";
+          window.location.href = returnTo;
         } catch {
           router.push("/sign-in");
         }

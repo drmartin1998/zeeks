@@ -58,15 +58,35 @@ vi.mock("@/lib/square/cookies", () => ({
   clearGuestCartOrderId: (...args: unknown[]) => mockClearGuestCartOrderId(...args),
 }));
 
-const { initiateCheckout } = await import("@/app/cart/actions");
+const { initiateCheckout, clearGuestCartCookie } = await import(
+  "@/app/cart/actions"
+);
 
 beforeEach(() => {
   vi.clearAllMocks();
   mockGetSquareCustomerId.mockReset();
   mockCreatePaymentLink.mockReset();
   mockGetGuestCartOrderId.mockReset();
+  mockClearGuestCartOrderId.mockReset();
   mockUserId = "user_123";
   mockGetGuestCartOrderId.mockResolvedValue(undefined);
+});
+
+describe("clearGuestCartCookie server action", () => {
+  it("should delete the guest cart cookie via the cookie utility", async () => {
+    mockClearGuestCartOrderId.mockResolvedValue(undefined);
+
+    await clearGuestCartCookie();
+
+    expect(mockClearGuestCartOrderId).toHaveBeenCalledTimes(1);
+  });
+
+  it("should resolve without error when called from an unauthenticated context", async () => {
+    mockClearGuestCartOrderId.mockResolvedValue(undefined);
+
+    await expect(clearGuestCartCookie()).resolves.toBeUndefined();
+    expect(mockClearGuestCartOrderId).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("initiateCheckout server action", () => {

@@ -2,10 +2,12 @@ import { auth } from "@clerk/nextjs/server";
 import { Footer } from "@/components/footer";
 import { getSquareCustomerId } from "@/lib/webhooks/clerk";
 import { getCart, findExistingDraftOrder } from "@/lib/square/cart";
-import { getGuestCartOrderId, clearGuestCartOrderId } from "@/lib/square/cookies";
+import { getGuestCartOrderId } from "@/lib/square/cookies";
 import { transferGuestCartToCustomer } from "@/lib/square/cart-transfer";
 import { ordersApi } from "@/lib/square/client";
 import { CartClient } from "@/components/cart/cart-client";
+import { GuestCartSync } from "@/components/cart/guest-cart-sync";
+import { GuestLoyaltyNotification } from "@/components/checkout/guest-loyalty-notification";
 import { LoyaltyPanel } from "@/components/cart/loyalty-panel/loyalty-panel";
 import { EarnedPointsNotice } from "@/components/cart/earned-points-notice";
 import { getFirstIssuedReward, fetchLoyaltyAccount } from "@/lib/square/loyalty";
@@ -30,6 +32,8 @@ export default async function CartPage() {
     const guestOrderId = await getGuestCartOrderId();
     if (guestOrderId) {
       const existing = await findExistingDraftOrder(squareCustomerId);
+      // Pure Square transfer — safe during render. The guest cookie is cleared
+      // by <GuestCartSync /> via a Server Action after render.
       await transferGuestCartToCustomer(
         guestOrderId,
         squareCustomerId,
@@ -85,6 +89,7 @@ export default async function CartPage() {
             }
           />
         </main>
+        <GuestCartSync active={Boolean(guestOrderId)} />
         <Footer />
       </div>
     );
@@ -108,17 +113,18 @@ export default async function CartPage() {
     const orderResponse = await ordersApi.get({ orderId: guestOrderId });
     orderState = (orderResponse.order?.state as string) ?? "DRAFT";
   } catch {
-    await clearGuestCartOrderId();
     orderState = "UNKNOWN";
   }
 
   if (orderState !== "DRAFT") {
-    await clearGuestCartOrderId();
+    // Defer clearing the stale guest cookie to a Server Action (via
+    // <GuestCartSync />) since cookies() cannot be mutated during render.
     return (
       <div className="flex min-h-screen flex-col">
         <main className="flex-1">
           <CartClient cart={null} error={null} squareCustomerId={null} />
         </main>
+        <GuestCartSync active />
         <Footer />
       </div>
     );
@@ -140,6 +146,16 @@ export default async function CartPage() {
           cart={cart}
           error={errorMessage}
           squareCustomerId={null}
+          guestLoyaltyPrompt={
+            cart && cart.lineItems.length > 0 ? (
+              <GuestLoyaltyNotification
+                isGuest
+                cartIsNonEmpty
+                checkoutPath="/cart"
+                isLoyaltyConfigured={!!process.env.SQUARE_LOYALTY_PROGRAM_ID}
+              />
+            ) : null
+          }
         />
       </main>
       <Footer />
