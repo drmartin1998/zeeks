@@ -3,6 +3,7 @@
 import { Component } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Show } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
 import { ShoppingBag } from "lucide-react";
@@ -45,6 +46,13 @@ interface NavBarProps {
 
 export function NavBar({ categories, cartItemCount, locationData }: NavBarProps) {
   const navItems = categories;
+  const pathname = usePathname();
+
+  // The password gate page is a standalone full-screen gate; the site nav
+  // (logo header) must not render on it.
+  if (pathname === "/password") {
+    return null;
+  }
 
   return (
     <header

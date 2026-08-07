@@ -3,8 +3,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock next/navigation for useRouter
 const mockPush = vi.fn();
+const mockPathname = vi.fn(() => "/");
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockPush }),
+  usePathname: () => mockPathname(),
 }));
 
 // Mock Clerk @clerk/nextjs for auth UI components
@@ -35,6 +37,7 @@ const mockSquareCategories: NavCategory[] = [
 describe("NavBar", () => {
   beforeEach(() => {
     setClerkMockConfig({ signedIn: false });
+    mockPathname.mockReturnValue("/");
   });
 
   it("should render categories passed as prop", () => {
@@ -283,5 +286,12 @@ describe("NavBar search typeahead integration", () => {
     fireEvent.keyDown(input, { key: "Enter" });
 
     expect(mockPush).toHaveBeenCalledWith("/search?q=warhammer");
+  });
+
+  it("should not render the nav header on the password gate page", () => {
+    mockPathname.mockReturnValue("/password");
+
+    const { container } = render(<NavBar categories={mockSquareCategories} />);
+    expect(container.querySelector("header")).toBeNull();
   });
 });
