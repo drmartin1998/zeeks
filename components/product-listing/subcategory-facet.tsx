@@ -76,6 +76,19 @@ interface SubcategoryNodeProps {
   onToggle: (slug: string) => void;
 }
 
+/**
+ * Whether a node (or any of its descendants) has a slug present in the
+ * selected slugs. Used so a parent checkbox appears checked when a child
+ * subcategory is selected.
+ */
+function isSelectedOrDescendant(
+  node: CategoryTreeNode,
+  selectedSlugs: string[]
+): boolean {
+  if (selectedSlugs.includes(node.slug)) return true;
+  return node.children.some((child) => isSelectedOrDescendant(child, selectedSlugs));
+}
+
 function SubcategoryNode({
   node,
   depth,
@@ -85,6 +98,12 @@ function SubcategoryNode({
   onToggle,
 }: SubcategoryNodeProps) {
   const selected = selectedSlugs.includes(node.slug);
+  // A node is visually "checked" if it is selected OR any of its descendants
+  // is selected (so selecting a child checks its parent and grandparents).
+  const hasSelectedDescendant = node.children.some((child) =>
+    isSelectedOrDescendant(child, selectedSlugs)
+  );
+  const checked = selected || hasSelectedDescendant;
   // Reveal children when this node is explicitly expanded. When no expanded
   // set is provided, fall back to the legacy `selected`-driven reveal so older
   // consumers keep working unchanged.
@@ -104,7 +123,7 @@ function SubcategoryNode({
       >
         <input
           type="checkbox"
-          checked={selected}
+          checked={checked}
           onChange={() => onToggle(node.slug)}
           className="h-4 w-4 cursor-pointer rounded border-gray-300 accent-zeeks-purple"
         />

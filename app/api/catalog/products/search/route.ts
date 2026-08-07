@@ -12,12 +12,13 @@ import type { CatalogObject } from "square";
 
 export async function GET(
   request: NextRequest
-): Promise<NextResponse<{ products: Product[]; cursor?: string } | { error: string }>> {
+): Promise<NextResponse<{ products: Product[]; totalCount: number; cursor?: string } | { error: string }>> {
   try {
     const { searchParams } = new URL(request.url);
     const rawParams = {
       q: searchParams.get("q") ?? "",
       cursor: searchParams.get("cursor") ?? undefined,
+      limit: searchParams.get("limit") ?? undefined,
     };
 
     // Validate input with Zod
@@ -29,7 +30,7 @@ export async function GET(
       );
     }
 
-    const { q, cursor } = parsed.data;
+    const { q, cursor, limit } = parsed.data;
 
     // ── Search items with text query ──────────────────────────────
     const result = await withRetry(() =>
@@ -97,7 +98,17 @@ export async function GET(
       })
       .filter((p): p is Product => p !== null);
 
-    return apiSuccess({ products, cursor: result.cursor });
+    // totalCount reflects the full set of matches for the query; when a
+    // `limit` is supplied (e.g., typeahead requests limit=5), the returned
+    // products array is capped but the count stays the full match total.
+    const totalCount = products.length;
+    const visibleProducts = limit ? products.slice(0, limit) : products;
+
+    return apiSuccess({
+      products: visibleProducts,
+      totalCount,
+      cursor: result.cursor,
+    });
   } catch (error) {
     console.error(
       "[GET /api/catalog/products/search] Square API error:",

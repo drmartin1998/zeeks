@@ -242,3 +242,46 @@ describe("NavBar — Location Bar", () => {
     expect(screen.getByText("Closed Now")).toBeInTheDocument();
   });
 });
+
+// ---------------------------------------------------------------------------
+// US4: Search typeahead in the navigation search bar
+// ---------------------------------------------------------------------------
+
+describe("NavBar search typeahead integration", () => {
+  const mockFetch = vi.fn();
+  vi.stubGlobal("fetch", mockFetch);
+
+  beforeEach(() => {
+    setClerkMockConfig({ signedIn: false });
+    mockFetch.mockReset();
+    mockPush.mockReset();
+  });
+
+  it("should show a typeahead dropdown while typing in the nav search bar", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        products: [{ id: "1", title: "Warhammer 40K", price: 49.99, image: null }],
+        totalCount: 1,
+      }),
+    });
+
+    render(<NavBar categories={mockSquareCategories} />);
+
+    const input = screen.getByRole("combobox");
+    fireEvent.change(input, { target: { value: "war" } });
+
+    await screen.findByText("Warhammer 40K");
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("should navigate to the search results page on submit", async () => {
+    render(<NavBar categories={mockSquareCategories} />);
+
+    const input = screen.getByRole("combobox");
+    fireEvent.change(input, { target: { value: "warhammer" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(mockPush).toHaveBeenCalledWith("/search?q=warhammer");
+  });
+});

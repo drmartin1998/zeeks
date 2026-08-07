@@ -1,17 +1,16 @@
 "use client";
 
-import { Component, useState } from "react";
+import { Component } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Show } from "@clerk/nextjs";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { Search, ShoppingBag } from "lucide-react";
+import { ShoppingBag } from "lucide-react";
 import type { NavCategory, LocationBarData } from "@/lib/square/types";
 import { AuthDropdown } from "@/components/auth/auth-dropdown";
 import { UserMenu } from "@/components/auth/user-menu";
 import { LocationBar } from "@/components/location-bar";
+import { SearchTypeahead } from "@/components/search-typeahead/search-typeahead";
 
 /** Error boundary catching Clerk component failures per FR-007. */
 class ClerkErrorBoundary extends Component<
@@ -46,21 +45,11 @@ interface NavBarProps {
 
 export function NavBar({ categories, cartItemCount, locationData }: NavBarProps) {
   const navItems = categories;
-  const router = useRouter();
-  const [searchQuery, setSearchQuery] = useState("");
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = searchQuery.trim();
-    if (trimmed) {
-      router.push(`/search?q=${encodeURIComponent(trimmed)}`);
-    }
-  };
 
   return (
     <header
       className={cn(
-        "w-full overflow-x-hidden",
+        "relative z-50 w-full",
         "bg-neutral-900",
         "shadow-[0_6px_18px_-6px_rgba(14,14,44,0.05)]"
       )}
@@ -76,18 +65,8 @@ export function NavBar({ categories, cartItemCount, locationData }: NavBarProps)
           />
         </Link>
 
-        {/* Search bar */}
-        <form onSubmit={handleSearch} className="flex w-full max-w-full order-last items-center gap-3 rounded-xl border border-border-default bg-white px-4 py-1.5 lg:order-none lg:w-auto lg:flex-1 lg:max-w-[1069px]">
-          <Input
-            placeholder="Search games, miniatures, and more..."
-            className="h-8 border-0 bg-transparent text-sm focus-visible:border-0"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          <button type="submit" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-action-primary">
-            <Search className="h-3.5 w-3.5 text-white" />
-          </button>
-        </form>
+        {/* Search typeahead */}
+        <SearchTypeahead />
 
         {/* Actions - always right-aligned */}
         <div className="ml-auto flex items-center gap-4">

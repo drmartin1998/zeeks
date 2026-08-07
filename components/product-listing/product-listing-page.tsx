@@ -87,6 +87,50 @@ function collectAllSlugs(nodes: CategoryTreeNode[]): string[] {
 }
 
 /**
+ * Find the tree node matching a slug, or `undefined` if it is not present.
+ */
+function findTreeNode(
+  nodes: CategoryTreeNode[],
+  slug: string
+): CategoryTreeNode | undefined {
+  for (const node of nodes) {
+    if (node.slug === slug) return node;
+    const found = findTreeNode(node.children, slug);
+    if (found) return found;
+  }
+  return undefined;
+}
+
+/**
+ * Return the slug of the parent of the node with the given slug, or `undefined`
+ * if the node is a top-level child (no parent within this tree) or not present.
+ */
+function findParentSlug(
+  nodes: CategoryTreeNode[],
+  slug: string
+): string | undefined {
+  for (const node of nodes) {
+    if (node.children.some((child) => child.slug === slug)) return node.slug;
+    const parent = findParentSlug(node.children, slug);
+    if (parent) return parent;
+  }
+  return undefined;
+}
+
+/**
+ * Whether a node (or any of its descendants) has a slug present in the
+ * selected slugs. Used to determine if a node is visually "checked" so a
+ * parent counts as selected when a descendant is selected.
+ */
+function isSelectedOrDescendant(
+  node: CategoryTreeNode,
+  selectedSlugs: string[]
+): boolean {
+  if (selectedSlugs.includes(node.slug)) return true;
+  return node.children.some((child) => isSelectedOrDescendant(child, selectedSlugs));
+}
+
+/**
  * Compute the set of subcategory slugs whose children should be revealed
  * (the drill-down EXPANDED state), given the currently selected filter nodes.
  *
@@ -325,9 +369,39 @@ export function ProductListingPage({
   );
 
   const toggleSub = (slug: string) => {
-    const next = activeSubs.includes(slug) ? [] : [slug]; // single-select
-    setActiveSubs(next);
-    syncUrl(next, activeBrands, activeAvailability);
+    const node = findTreeNode(subTree, slug);
+    // A node is considered "checked" if it is directly selected OR a descendant
+    // is selected (the parent is visually checked when a child is selected).
+    const hasSelectedDescendant =
+      node?.children.some((child) =>
+        isSelectedOrDescendant(child, activeSubs)
+      ) ?? false;
+    const checked = activeSubs.includes(slug) || hasSelectedDescendant;
+
+    // If the node is not checked, select it (single-select).
+    if (!checked) {
+      setActiveSubs([slug]);
+      syncUrl([slug], activeBrands, activeAvailability);
+      setCurrentPage(1);
+      return;
+    }
+
+    // The node IS checked. Determine what to do on deselect:
+    // - If the node is a parent (has children): unselecting it must clear the
+    //   parent AND all its descendants.
+    // - If the node is a leaf/child: unselecting it keeps its parent selected
+    //   (the filter moves up to the parent).
+    if (node && node.children.length > 0) {
+      // Deselect a parent → clear everything under it.
+      setActiveSubs([]);
+      syncUrl([], activeBrands, activeAvailability);
+    } else {
+      // Deselect a child → keep its parent selected.
+      const parentSlug = findParentSlug(subTree, slug);
+      const next = parentSlug ? [parentSlug] : [];
+      setActiveSubs(next);
+      syncUrl(next, activeBrands, activeAvailability);
+    }
     setCurrentPage(1);
   };
 
