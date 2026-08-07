@@ -1,6 +1,7 @@
 import { HeroSection } from "@/components/hero-section";
 import { FeaturedCategories } from "@/components/featured-categories";
 import { FeaturedGames } from "@/components/featured-games";
+import { LocalStoreHub } from "@/components/local-store-hub/local-store-hub";
 import { PromoBanner } from "@/components/promo-banner";
 import { Footer } from "@/components/footer";
 import { sanityFetch } from "@/lib/sanity/live";
@@ -77,6 +78,7 @@ export default async function Home() {
             }))}
           />
         )}
+        <LocalStoreHub />
         <PromoBanner />
       </main>
       <Footer />
