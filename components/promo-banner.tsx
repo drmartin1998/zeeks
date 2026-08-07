@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowRight, Zap } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 export function PromoBanner() {
@@ -16,10 +17,12 @@ export function PromoBanner() {
             Join our loyalty program today and unlock an extra 15% off your
             first order of board games. Limited time only.
           </p>
-          <Button variant="tertiary" size="xl" className="mt-2 h-[41px] w-fit gap-2 rounded-lg px-6 text-sm font-bold">
-            Join Now
-            <ArrowRight className="h-4 w-4" />
-          </Button>
+          <Link href="/sign-up">
+            <Button variant="tertiary" size="xl" className="mt-2 h-[41px] w-fit gap-2 rounded-lg px-6 text-sm font-bold">
+              Join Now
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          </Link>
         </div>
 
         {/* Decorative zap icon */}

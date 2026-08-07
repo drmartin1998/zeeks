@@ -222,6 +222,7 @@ export const SearchParamsSchema = z.object({
 export const ProductSearchParamsSchema = z.object({
   q: z.string().min(1, "Search query is required"),
   cursor: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
 });
 
 /** Standard error response shape. */

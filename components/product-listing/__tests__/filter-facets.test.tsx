@@ -503,6 +503,192 @@ describe("ProductListingPage nested subcategory facet", () => {
     expect(screen.getByText("GW Space Marine")).toBeInTheDocument();
     expect(screen.queryByText("Stormcast Eternals")).not.toBeInTheDocument();
   });
+
+  it("should visually check a parent when a descendant subcategory is selected", async () => {
+    const user = userEvent.setup();
+
+    const tree: CategoryTreeNode[] = [
+      {
+        id: "GW",
+        name: "Games Workshop",
+        slug: "games-workshop",
+        children: [
+          {
+            id: "SM",
+            name: "Space Marines",
+            slug: "space-marines",
+            children: [],
+          },
+        ],
+      },
+    ];
+
+    render(
+      <ProductListingPage
+        category={{ slug: "miniatures", name: "Miniatures", description: "" }}
+        products={[
+          {
+            slug: "gw-space-marine",
+            title: "GW Space Marine",
+            category: "Miniatures",
+            subCategory: "Space Marines",
+            subCategorySlug: "space-marines",
+            subCategorySlugs: ["games-workshop", "space-marines"],
+            price: 40,
+            brand: "GW Store",
+            availability: "IN_STOCK",
+          },
+        ]}
+        subCategoryTree={tree}
+      />
+    );
+
+    // Expand Games Workshop to reveal its child.
+    await clickCheckbox(user, /games workshop/i);
+
+    // Select the child "Space Marines".
+    await clickCheckbox(user, /space marines/i);
+
+    // The parent "Games Workshop" checkbox should now be checked too.
+    const parentBox = screen.getAllByRole("checkbox", { name: /games workshop/i })[0];
+    expect(parentBox).toBeChecked();
+  });
+
+  it("should keep the parent selected when a child subcategory is unselected", async () => {
+    const user = userEvent.setup();
+
+    const tree: CategoryTreeNode[] = [
+      {
+        id: "GW",
+        name: "Games Workshop",
+        slug: "games-workshop",
+        children: [
+          {
+            id: "SM",
+            name: "Space Marines",
+            slug: "space-marines",
+            children: [],
+          },
+          {
+            id: "AOS",
+            name: "Age of Sigmar",
+            slug: "age-of-sigmar",
+            children: [],
+          },
+        ],
+      },
+    ];
+
+    render(
+      <ProductListingPage
+        category={{ slug: "miniatures", name: "Miniatures", description: "" }}
+        products={[
+          {
+            slug: "gw-space-marine",
+            title: "GW Space Marine",
+            category: "Miniatures",
+            subCategory: "Space Marines",
+            subCategorySlug: "space-marines",
+            subCategorySlugs: ["games-workshop", "space-marines"],
+            price: 40,
+            brand: "GW Store",
+            availability: "IN_STOCK",
+          },
+          {
+            slug: "stormcast",
+            title: "Stormcast Eternals",
+            category: "Miniatures",
+            subCategory: "Age of Sigmar",
+            subCategorySlug: "age-of-sigmar",
+            subCategorySlugs: ["games-workshop", "age-of-sigmar"],
+            price: 45,
+            brand: "GW Store",
+            availability: "IN_STOCK",
+          },
+        ]}
+        subCategoryTree={tree}
+      />
+    );
+
+    // Expand Games Workshop, then select the child "Space Marines".
+    await clickCheckbox(user, /games workshop/i);
+    await clickCheckbox(user, /space marines/i);
+
+    // Unselect the child "Space Marines".
+    await clickCheckbox(user, /space marines/i);
+
+    // The parent "Games Workshop" remains selected (checked) and active.
+    const parentBox = screen.getAllByRole("checkbox", { name: /games workshop/i })[0];
+    expect(parentBox).toBeChecked();
+    // Filtering now shows all products under the parent.
+    expect(screen.getByText("GW Space Marine")).toBeInTheDocument();
+    expect(screen.getByText("Stormcast Eternals")).toBeInTheDocument();
+  });
+
+  it("should unselect a parent and all its descendants when the parent is unselected", async () => {
+    const user = userEvent.setup();
+
+    const tree: CategoryTreeNode[] = [
+      {
+        id: "GW",
+        name: "Games Workshop",
+        slug: "games-workshop",
+        children: [
+          {
+            id: "SM",
+            name: "Space Marines",
+            slug: "space-marines",
+            children: [],
+          },
+        ],
+      },
+    ];
+
+    render(
+      <ProductListingPage
+        category={{ slug: "miniatures", name: "Miniatures", description: "" }}
+        products={[
+          {
+            slug: "gw-space-marine",
+            title: "GW Space Marine",
+            category: "Miniatures",
+            subCategory: "Space Marines",
+            subCategorySlug: "space-marines",
+            subCategorySlugs: ["games-workshop", "space-marines"],
+            price: 40,
+            brand: "GW Store",
+            availability: "IN_STOCK",
+          },
+          {
+            slug: "citadel-paint",
+            title: "Citadel Paint",
+            category: "Miniatures",
+            subCategory: "Paints",
+            subCategorySlug: "paints",
+            subCategorySlugs: ["paints"],
+            price: 5,
+            brand: "Citadel",
+            availability: "IN_STOCK",
+          },
+        ]}
+        subCategoryTree={[tree[0], { id: "PAINT", name: "Paints", slug: "paints", children: [] }]}
+      />
+    );
+
+    // Select the child "Space Marines" (parent becomes checked).
+    await clickCheckbox(user, /games workshop/i);
+    await clickCheckbox(user, /space marines/i);
+
+    // Unselect the parent "Games Workshop" → clears parent AND descendants.
+    await clickCheckbox(user, /games workshop/i);
+
+    // Parent is now unchecked.
+    const parentBox = screen.getAllByRole("checkbox", { name: /games workshop/i })[0];
+    expect(parentBox).not.toBeChecked();
+    // No subcategory filter remains — all products show.
+    expect(screen.getByText("GW Space Marine")).toBeInTheDocument();
+    expect(screen.getByText("Citadel Paint")).toBeInTheDocument();
+  });
 });
 
 describe("ProductListingPage brand facet", () => {
