@@ -1,4 +1,4 @@
-import { getNavCategories } from "@/lib/data/categories";
+import { getNavCategories, getNavCategoryTree } from "@/lib/data/categories";
 import { getLocationBarData } from "@/lib/data/locations";
 import { NavBar } from "@/components/nav-bar";
 import { auth } from "@clerk/nextjs/server";
@@ -7,15 +7,21 @@ import { getCartItemCount } from "@/lib/square/cart";
 import { getGuestCartOrderId } from "@/lib/square/cookies";
 
 export async function NavBarServer() {
-  const [categoriesResult, locationResult] = await Promise.allSettled([
-    getNavCategories(),
-    getLocationBarData(),
-  ]);
+  const [categoriesResult, locationResult, treeResult] =
+    await Promise.allSettled([
+      getNavCategories(),
+      getLocationBarData(),
+      getNavCategoryTree(),
+    ]);
 
   const categories =
     categoriesResult.status === "fulfilled" ? categoriesResult.value : [];
   const locationData =
     locationResult.status === "fulfilled" ? locationResult.value : null;
+  const categoryTree =
+    treeResult.status === "fulfilled"
+      ? treeResult.value
+      : { root: [], source: "empty" as const };
 
   let cartItemCount: number | undefined;
 
@@ -42,6 +48,7 @@ export async function NavBarServer() {
   return (
     <NavBar
       categories={categories}
+      categoryTree={categoryTree}
       cartItemCount={cartItemCount}
       locationData={locationData}
     />

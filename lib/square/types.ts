@@ -10,6 +10,49 @@ export interface NavCategory {
 }
 
 /**
+ * A node in the hierarchical Shop-menu category tree.
+ *
+ * Extends the flat `NavCategory` with a nested `children` list so the
+ * megamenu (desktop) and drilldown drawer (mobile) can render up to two
+ * levels of subcategories below a top-level category. `children` is empty
+ * (`[]`) for leaf categories, which render as direct navigable links.
+ */
+export interface NavCategoryNode {
+  label: string;
+  href: string;
+  children: NavCategoryNode[];
+  /** Derived: `children.length > 0`. Drives the expand/drilldown affordance. */
+  hasChildren: boolean;
+}
+
+/**
+ * The full nested structure passed to `NavBar` for rendering the Shop menu.
+ *
+ * `source` distinguishes a live-Square tree from an empty one (data
+ * unavailable). When `source === "empty"`, `root` is `[]` and the Shop menu
+ * is not rendered — no fabricated categories are ever shown.
+ */
+export interface CategoryTree {
+  root: NavCategoryNode[];
+  source: "square" | "empty";
+}
+
+/** Zod schema validating a single nested nav category node (recursive). */
+export const NavCategoryNodeSchema: z.ZodType<NavCategoryNode> = z.lazy(() =>
+  z.object({
+    label: z.string().min(1),
+    href: z.string().min(1),
+    children: z.array(NavCategoryNodeSchema),
+    hasChildren: z.boolean(),
+  })
+);
+
+/** Zod schema validating the nested category-tree API response. */
+export const CategoryTreeSchema = z.object({
+  tree: z.array(NavCategoryNodeSchema),
+});
+
+/**
  * Raw Square Catalog API response shape for a CATEGORY object.
  * Mirrors Square's CatalogObject with type === "CATEGORY".
  */

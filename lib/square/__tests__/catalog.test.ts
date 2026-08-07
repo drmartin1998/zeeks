@@ -1439,3 +1439,106 @@ describe("getProductDetailBySlug category breadcrumb path", () => {
     ]);
   });
 });
+
+describe("buildNavCategoryTree", () => {
+  const MINIATURES_ID = "ZCZJWQX6WREDLATZFW3U7OCJ";
+  const GW_ID = "GW1";
+  const W40K_ID = "W40K";
+
+  it("should build a flat tree for a top-level category with no children", async () => {
+    const { buildNavCategoryTree } = await import("@/lib/square/catalog");
+    const tree = buildNavCategoryTree([
+      {
+        id: MINIATURES_ID,
+        type: "CATEGORY",
+        categoryData: { channels: ["TEST_CHANNEL"], name: "Miniatures" },
+      },
+    ]);
+    expect(tree).toHaveLength(1);
+    expect(tree[0]).toEqual({
+      label: "Miniatures",
+      href: "/categories/miniatures",
+      children: [],
+      hasChildren: false,
+    });
+  });
+
+  it("should nest level-2 children (indented) and level-3 grandchildren", async () => {
+    const { buildNavCategoryTree } = await import("@/lib/square/catalog");
+    const tree = buildNavCategoryTree([
+      {
+        id: MINIATURES_ID,
+        type: "CATEGORY",
+        categoryData: { channels: ["TEST_CHANNEL"], name: "Miniatures" },
+      },
+      {
+        id: GW_ID,
+        type: "CATEGORY",
+        categoryData: {
+          name: "Games Workshop",
+          channels: ["TEST_CHANNEL"],
+          parentCategory: { id: MINIATURES_ID },
+        },
+      },
+      {
+        id: W40K_ID,
+        type: "CATEGORY",
+        categoryData: {
+          name: "Warhammer 40K",
+          channels: ["TEST_CHANNEL"],
+          parentCategory: { id: GW_ID },
+        },
+      },
+    ]);
+    expect(tree).toHaveLength(1);
+    expect(tree[0].hasChildren).toBe(true);
+    expect(tree[0].children).toHaveLength(1);
+    expect(tree[0].children[0]).toMatchObject({
+      label: "Games Workshop",
+      href: "/categories/miniatures?sub=games-workshop",
+      hasChildren: true,
+      children: [
+        {
+          label: "Warhammer 40K",
+          href: "/categories/miniatures?sub=warhammer-40k",
+          hasChildren: false,
+          children: [],
+        },
+      ],
+    });
+  });
+
+  it("should preserve a two-level-deep Miniatures hierarchy (US3)", async () => {
+    const { buildNavCategoryTree } = await import("@/lib/square/catalog");
+    const tree = buildNavCategoryTree([
+      {
+        id: MINIATURES_ID,
+        type: "CATEGORY",
+        categoryData: { channels: ["TEST_CHANNEL"], name: "Miniatures" },
+      },
+      {
+        id: GW_ID,
+        type: "CATEGORY",
+        categoryData: {
+          name: "Games Workshop",
+          channels: ["TEST_CHANNEL"],
+          parentCategory: { id: MINIATURES_ID },
+        },
+      },
+      {
+        id: W40K_ID,
+        type: "CATEGORY",
+        categoryData: {
+          name: "Warhammer 40K",
+          channels: ["TEST_CHANNEL"],
+          parentCategory: { id: GW_ID },
+        },
+      },
+    ]);
+    // Miniatures → Games Workshop (level-2) → Warhammer 40K (level-3)
+    const gw = tree[0].children[0];
+    expect(gw.children).toHaveLength(1);
+    expect(gw.children[0].label).toBe("Warhammer 40K");
+    expect(tree[0].children[0].children[0].hasChildren).toBe(false);
+  });
+});
