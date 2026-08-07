@@ -140,10 +140,13 @@ export const ProductSchema = z.object({
   categorySlug: z.string().min(1),
   subCategory: z.string().optional(),
   subCategorySlug: z.string().optional(),
+  subCategorySlugs: z.array(z.string()).optional(),
   price: z.number().min(0),
   currency: z.string().default("USD"),
   imageUrl: z.string().optional(),
   gradient: z.string(),
+  brand: z.string().optional(),
+  availability: z.enum(["IN_STOCK", "OUT_OF_STOCK"]).optional(),
 });
 
 /** Application-level product type inferred from the Zod schema. */
@@ -240,6 +243,10 @@ export interface DisplayProduct {
   hasVariations?: boolean;
   minPrice?: number;
   maxPrice?: number;
+  /** Manufacturer brand from the item's brand custom attribute, if any */
+  brand?: string;
+  /** Availability at the listing location; in stock if any variation is available */
+  availability: "IN_STOCK" | "OUT_OF_STOCK";
 }
 
 // ---------------------------------------------------------------------------

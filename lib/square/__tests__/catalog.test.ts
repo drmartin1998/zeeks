@@ -432,3 +432,553 @@ describe("slugify", () => {
     expect(slugify("Red & Blue")).toBe("red-blue");
   });
 });
+
+// -------------------------------------------------------------------------
+// Brand + availability extraction tests (Faceted Product Listing Filters)
+// -------------------------------------------------------------------------
+
+describe("getSquareProductsByCategorySlug brand + availability facets", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  async function mockCategoryAndItems(items: unknown[]) {
+    const { catalogApi } = await import("@/lib/square/client");
+    vi.mocked(catalogApi.search).mockResolvedValue({
+      objects: [
+        {
+          id: MINIATURES_ID,
+          type: "CATEGORY" as const,
+          categoryData: { name: "Miniatures", channels: ["TEST_CHANNEL"] },
+        },
+      ],
+    });
+    vi.mocked(catalogApi.searchItems).mockResolvedValue({
+      items: items as never,
+    });
+  }
+
+  it("should surface the brand custom attribute on each product", async () => {
+    await mockCategoryAndItems([
+      {
+        type: "ITEM",
+        id: "ITEM_BRANDED",
+        itemData: {
+          name: "Space Marines",
+          customAttributeValues: {
+            brand: { stringValue: "Games Workshop" },
+          },
+          variations: [
+            {
+              type: "ITEM_VARIATION",
+              itemVariationData: {
+                priceMoney: { amount: 5000n, currency: "USD" },
+              },
+            },
+          ],
+        },
+      },
+      {
+        type: "ITEM",
+        id: "ITEM_NO_BRAND",
+        itemData: {
+          name: "Ork Boyz",
+          customAttributeValues: {},
+          variations: [
+            {
+              type: "ITEM_VARIATION",
+              itemVariationData: {
+                priceMoney: { amount: 3500n, currency: "USD" },
+              },
+            },
+          ],
+        },
+      },
+    ]);
+
+    const { getSquareProductsByCategorySlug } = await import(
+      "@/lib/square/catalog"
+    );
+    const products = await getSquareProductsByCategorySlug("miniatures");
+
+    expect(products).not.toBeNull();
+    const byTitle = Object.fromEntries(
+      products!.map((p) => [p.title, p.brand])
+    );
+    expect(byTitle["Space Marines"]).toBe("Games Workshop");
+    expect(byTitle["Ork Boyz"]).toBeUndefined();
+  });
+
+  it("should classify a product as IN_STOCK when any variation is available", async () => {
+    await mockCategoryAndItems([
+      {
+        type: "ITEM",
+        id: "ITEM_MIXED",
+        itemData: {
+          name: "Mixed Box",
+          variations: [
+            {
+              type: "ITEM_VARIATION",
+              itemVariationData: {
+                priceMoney: { amount: 5000n, currency: "USD" },
+                locationOverrides: [
+                  { locationId: "TEST_LOCATION", soldOut: true },
+                ],
+              },
+            },
+            {
+              type: "ITEM_VARIATION",
+              itemVariationData: {
+                priceMoney: { amount: 6000n, currency: "USD" },
+                locationOverrides: [
+                  { locationId: "TEST_LOCATION", soldOut: false },
+                ],
+              },
+            },
+          ],
+        },
+      },
+    ]);
+
+    const { getSquareProductsByCategorySlug } = await import(
+      "@/lib/square/catalog"
+    );
+    const products = await getSquareProductsByCategorySlug("miniatures");
+
+    expect(products).not.toBeNull();
+    expect(products![0].availability).toBe("IN_STOCK");
+  });
+
+  it("should classify a product as OUT_OF_STOCK when all variations are sold out", async () => {
+    await mockCategoryAndItems([
+      {
+        type: "ITEM",
+        id: "ITEM_SOLD_OUT",
+        itemData: {
+          name: "Sold Out Set",
+          variations: [
+            {
+              type: "ITEM_VARIATION",
+              itemVariationData: {
+                priceMoney: { amount: 5000n, currency: "USD" },
+                locationOverrides: [
+                  { locationId: "TEST_LOCATION", soldOut: true },
+                ],
+              },
+            },
+          ],
+        },
+      },
+    ]);
+
+    const { getSquareProductsByCategorySlug } = await import(
+      "@/lib/square/catalog"
+    );
+    const products = await getSquareProductsByCategorySlug("miniatures");
+
+    expect(products).not.toBeNull();
+    expect(products![0].availability).toBe("OUT_OF_STOCK");
+  });
+
+  it("should default a product with no location override data to IN_STOCK", async () => {
+    await mockCategoryAndItems([
+      {
+        type: "ITEM",
+        id: "ITEM_NO_OVERRIDE",
+        itemData: {
+          name: "No Override Item",
+          variations: [
+            {
+              type: "ITEM_VARIATION",
+              itemVariationData: {
+                priceMoney: { amount: 2500n, currency: "USD" },
+              },
+            },
+          ],
+        },
+      },
+    ]);
+
+    const { getSquareProductsByCategorySlug } = await import(
+      "@/lib/square/catalog"
+    );
+    const products = await getSquareProductsByCategorySlug("miniatures");
+
+    expect(products).not.toBeNull();
+    expect(products![0].availability).toBe("IN_STOCK");
+  });
+});
+
+// -------------------------------------------------------------------------
+// Recursive (nested) subcategory behavior — "Games Workshop" bug fix
+// -------------------------------------------------------------------------
+
+describe("getSquareProductsByCategorySlug recursive nested subcategories", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  /**
+   * Builds a category tree:
+   *  Miniatures (top-level)
+   *    ├── Games Workshop (direct child, NO products assigned directly)
+   *    │     ├── Space Marines (sub-subcategory → holds products)
+   *    │     └── Age of Sigmar   (sub-subcategory → holds products)
+   *    └── Paints (direct child → holds products directly)
+   */
+  async function mockNestedTree() {
+    const { catalogApi } = await import("@/lib/square/client");
+    vi.mocked(catalogApi.search).mockResolvedValue({
+      objects: [
+        {
+          id: MINIATURES_ID,
+          type: "CATEGORY" as const,
+          categoryData: { name: "Miniatures", channels: ["TEST_CHANNEL"] },
+        },
+        {
+          id: "GW",
+          type: "CATEGORY" as const,
+          categoryData: {
+            name: "Games Workshop",
+            parentCategory: { id: MINIATURES_ID },
+            channels: ["TEST_CHANNEL"],
+          },
+        },
+        {
+          id: "SM",
+          type: "CATEGORY" as const,
+          categoryData: {
+            name: "Space Marines",
+            parentCategory: { id: "GW" },
+            channels: ["TEST_CHANNEL"],
+          },
+        },
+        {
+          id: "AOS",
+          type: "CATEGORY" as const,
+          categoryData: {
+            name: "Age of Sigmar",
+            parentCategory: { id: "GW" },
+            channels: ["TEST_CHANNEL"],
+          },
+        },
+        {
+          id: "PAINT",
+          type: "CATEGORY" as const,
+          categoryData: {
+            name: "Paints",
+            parentCategory: { id: MINIATURES_ID },
+            channels: ["TEST_CHANNEL"],
+          },
+        },
+      ],
+    });
+  }
+
+  it("should fetch products assigned to nested (2-level-deep) subcategories", async () => {
+    await mockNestedTree();
+
+    const { catalogApi } = await import("@/lib/square/client");
+    vi.mocked(catalogApi.searchItems).mockResolvedValue({
+      items: [
+        {
+          type: "ITEM",
+          id: "ITEM_SM",
+          itemData: {
+            name: "Space Marine Squad",
+            categories: [{ id: "SM" }],
+            variations: [
+              {
+                type: "ITEM_VARIATION",
+                itemVariationData: {
+                  priceMoney: { amount: 5000n, currency: "USD" },
+                },
+              },
+            ],
+          },
+        },
+        {
+          type: "ITEM",
+          id: "ITEM_AOS",
+          itemData: {
+            name: "Stormcast Eternals",
+            categories: [{ id: "AOS" }],
+            variations: [
+              {
+                type: "ITEM_VARIATION",
+                itemVariationData: {
+                  priceMoney: { amount: 4500n, currency: "USD" },
+                },
+              },
+            ],
+          },
+        },
+      ] as never,
+    });
+
+    const { getSquareProductsByCategorySlug } = await import(
+      "@/lib/square/catalog"
+    );
+    const products = await getSquareProductsByCategorySlug("miniatures");
+
+    expect(products).not.toBeNull();
+    // Both nested products must be fetched (they live 2 levels deep)
+    expect(products!.map((p) => p.title).sort()).toEqual([
+      "Space Marine Squad",
+      "Stormcast Eternals",
+    ]);
+  });
+
+  it("should annotate a nested product with its nearest top-level-child ancestor", async () => {
+    await mockNestedTree();
+
+    const { catalogApi } = await import("@/lib/square/client");
+    vi.mocked(catalogApi.searchItems).mockResolvedValue({
+      items: [
+        {
+          type: "ITEM",
+          id: "ITEM_SM",
+          itemData: {
+            name: "Space Marine Squad",
+            categories: [{ id: "SM" }],
+            variations: [
+              {
+                type: "ITEM_VARIATION",
+                itemVariationData: {
+                  priceMoney: { amount: 5000n, currency: "USD" },
+                },
+              },
+            ],
+          },
+        },
+      ] as never,
+    });
+
+    const { getSquareProductsByCategorySlug } = await import(
+      "@/lib/square/catalog"
+    );
+    const products = await getSquareProductsByCategorySlug("miniatures");
+
+    // The search must include the nested sub-subcategory IDs (SM, AOS)
+    const searchCalls = vi.mocked(catalogApi.searchItems).mock.calls;
+    const searchedCategoryIds = searchCalls[0]?.[0]?.categoryIds as
+      | string[]
+      | undefined;
+    expect(searchedCategoryIds).toEqual(
+      expect.arrayContaining([MINIATURES_ID, "GW", "SM", "AOS", "PAINT"])
+    );
+
+    // The product rolls up to "Games Workshop" (nearest top-level child)
+    expect(products).not.toBeNull();
+    expect(products![0].subCategory).toBe("Games Workshop");
+    expect(products![0].subCategorySlug).toBe("games-workshop");
+  });
+
+  it("should build a subcategory tree that maps every descendant to its facet subcategory", async () => {
+    const { buildSubcategoryTree } = await import("@/lib/square/catalog");
+
+    const { catalogApi } = await import("@/lib/square/client");
+    vi.mocked(catalogApi.search).mockResolvedValue({
+      objects: [
+        {
+          id: MINIATURES_ID,
+          type: "CATEGORY" as const,
+          categoryData: { name: "Miniatures", channels: ["TEST_CHANNEL"] },
+        },
+        {
+          id: "GW",
+          type: "CATEGORY" as const,
+          categoryData: {
+            name: "Games Workshop",
+            parentCategory: { id: MINIATURES_ID },
+            channels: ["TEST_CHANNEL"],
+          },
+        },
+        {
+          id: "SM",
+          type: "CATEGORY" as const,
+          categoryData: {
+            name: "Space Marines",
+            parentCategory: { id: "GW" },
+            channels: ["TEST_CHANNEL"],
+          },
+        },
+        {
+          id: "AOS",
+          type: "CATEGORY" as const,
+          categoryData: {
+            name: "Age of Sigmar",
+            parentCategory: { id: "GW" },
+            channels: ["TEST_CHANNEL"],
+          },
+        },
+      ],
+    });
+
+    const { fetchAllCategories } = await import("@/lib/square/catalog");
+    const allCats = await fetchAllCategories();
+
+    const { descendantIds, subByDescendantId } = buildSubcategoryTree(
+      allCats,
+      MINIATURES_ID
+    );
+
+    // All descendants (both depths) are captured
+    expect(descendantIds).toEqual(expect.arrayContaining(["GW", "SM", "AOS"]));
+
+    // Every descendant maps to its nearest top-level child ("GW")
+    expect(subByDescendantId.get("GW")?.slug).toBe("games-workshop");
+    expect(subByDescendantId.get("SM")?.slug).toBe("games-workshop");
+    expect(subByDescendantId.get("AOS")?.slug).toBe("games-workshop");
+    expect(subByDescendantId.get("SM")?.name).toBe("Games Workshop");
+  });
+});
+
+// -------------------------------------------------------------------------
+// Category tree building (drill-down facet reveal)
+// -------------------------------------------------------------------------
+
+describe("buildCategoryTree", () => {
+  it("should build a nested tree of direct children and their descendants", async () => {
+    const { buildCategoryTree } = await import("@/lib/square/catalog");
+
+    const { catalogApi } = await import("@/lib/square/client");
+    vi.mocked(catalogApi.search).mockResolvedValue({
+      objects: [
+        {
+          id: MINIATURES_ID,
+          type: "CATEGORY" as const,
+          categoryData: { name: "Miniatures", channels: ["TEST_CHANNEL"] },
+        },
+        {
+          id: "GW",
+          type: "CATEGORY" as const,
+          categoryData: {
+            name: "Games Workshop",
+            parentCategory: { id: MINIATURES_ID },
+            channels: ["TEST_CHANNEL"],
+          },
+        },
+        {
+          id: "SM",
+          type: "CATEGORY" as const,
+          categoryData: {
+            name: "Space Marines",
+            parentCategory: { id: "GW" },
+            channels: ["TEST_CHANNEL"],
+          },
+        },
+        {
+          id: "AOS",
+          type: "CATEGORY" as const,
+          categoryData: {
+            name: "Age of Sigmar",
+            parentCategory: { id: "GW" },
+            channels: ["TEST_CHANNEL"],
+          },
+        },
+        {
+          id: "PAINT",
+          type: "CATEGORY" as const,
+          categoryData: {
+            name: "Paints",
+            parentCategory: { id: MINIATURES_ID },
+            channels: ["TEST_CHANNEL"],
+          },
+        },
+      ],
+    });
+
+    const { fetchAllCategories } = await import("@/lib/square/catalog");
+    const allCats = await fetchAllCategories();
+
+    const tree = buildCategoryTree(allCats, MINIATURES_ID);
+
+    // Two direct children: Games Workshop and Paints
+    expect(tree.map((n) => n.slug)).toEqual(["games-workshop", "paints"]);
+
+    // Games Workshop carries its grandchildren as a nested `children` level
+    const gw = tree[0];
+    expect(gw.children.map((c) => c.slug)).toEqual([
+      "space-marines",
+      "age-of-sigmar",
+    ]);
+    // Those grandchildren are leaves (no deeper children)
+    expect(gw.children.every((c) => c.children.length === 0)).toBe(true);
+
+    // Paints is a leaf
+    expect(tree[1].children).toEqual([]);
+  });
+
+  it("should return an empty array when the parent has no subcategories", async () => {
+    const { buildCategoryTree } = await import("@/lib/square/catalog");
+
+    const { catalogApi } = await import("@/lib/square/client");
+    vi.mocked(catalogApi.search).mockResolvedValue({
+      objects: [
+        {
+          id: MINIATURES_ID,
+          type: "CATEGORY" as const,
+          categoryData: { name: "Miniatures", channels: ["TEST_CHANNEL"] },
+        },
+      ],
+    });
+
+    const { fetchAllCategories } = await import("@/lib/square/catalog");
+    const allCats = await fetchAllCategories();
+
+    const tree = buildCategoryTree(allCats, MINIATURES_ID);
+    expect(tree).toEqual([]);
+  });
+});
+
+describe("flattenCategoryTree", () => {
+  it("should map every category ID to its slug path from the top child down", async () => {
+    const { buildCategoryTree, flattenCategoryTree } = await import(
+      "@/lib/square/catalog"
+    );
+
+    const { catalogApi } = await import("@/lib/square/client");
+    vi.mocked(catalogApi.search).mockResolvedValue({
+      objects: [
+        {
+          id: MINIATURES_ID,
+          type: "CATEGORY" as const,
+          categoryData: { name: "Miniatures", channels: ["TEST_CHANNEL"] },
+        },
+        {
+          id: "GW",
+          type: "CATEGORY" as const,
+          categoryData: {
+            name: "Games Workshop",
+            parentCategory: { id: MINIATURES_ID },
+            channels: ["TEST_CHANNEL"],
+          },
+        },
+        {
+          id: "SM",
+          type: "CATEGORY" as const,
+          categoryData: {
+            name: "Space Marines",
+            parentCategory: { id: "GW" },
+            channels: ["TEST_CHANNEL"],
+          },
+        },
+      ],
+    });
+
+    const { fetchAllCategories } = await import("@/lib/square/catalog");
+    const allCats = await fetchAllCategories();
+
+    const tree = buildCategoryTree(allCats, MINIATURES_ID);
+    const { slugPathByCategoryId } = flattenCategoryTree(tree);
+
+    // Direct child maps to a single-element path
+    expect(slugPathByCategoryId.get("GW")).toEqual(["games-workshop"]);
+    // Grandchild maps to the top child → grandchild path (enables drill-down)
+    expect(slugPathByCategoryId.get("SM")).toEqual([
+      "games-workshop",
+      "space-marines",
+    ]);
+  });
+});

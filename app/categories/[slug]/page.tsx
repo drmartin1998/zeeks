@@ -5,6 +5,8 @@ import {
   getSquareCategoryBySlug,
   getSquareProductsByCategorySlug,
   getSquareSubcategories,
+  getCategoryTree,
+  type CategoryTreeNode,
   type SquareProduct,
 } from "@/lib/square/catalog";
 
@@ -22,6 +24,7 @@ function toProduct(sp: SquareProduct) {
     category: sp.category,
     subCategory: sp.subCategory,
     subCategorySlug: sp.subCategorySlug,
+    subCategorySlugs: sp.subCategorySlugs,
     price: sp.price,
     minPrice: sp.minPrice,
     maxPrice: sp.maxPrice,
@@ -30,6 +33,8 @@ function toProduct(sp: SquareProduct) {
     catalogObjectId: sp.catalogObjectId,
     variationId: sp.variationId,
     hasVariations: sp.hasVariations,
+    brand: sp.brand,
+    availability: sp.availability,
   };
 }
 
@@ -42,9 +47,10 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
     notFound();
   }
 
-  const [squareProducts, subCategories] = await Promise.all([
+  const [squareProducts, subCategories, subCategoryTree] = await Promise.all([
     getSquareProductsByCategorySlug(slug),
     getSquareSubcategories(slug),
+    getCategoryTree(slug),
   ]);
 
   const products = (squareProducts ?? []).map(toProduct);
@@ -60,6 +66,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
         }}
         products={products}
         subCategories={subCategories}
+        subCategoryTree={subCategoryTree as CategoryTreeNode[]}
       />
     </Suspense>
   );

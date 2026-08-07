@@ -38,6 +38,7 @@ function createProducts(count: number, subSlug?: string): SquareProduct[] {
     price: 10 + i,
     image: "",
     gradient: "from-zeeks-purple to-zeeks-purple-dark",
+    availability: "IN_STOCK",
   }));
 }
 
