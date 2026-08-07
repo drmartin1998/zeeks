@@ -1,10 +1,10 @@
 import {
   type NavCategory,
-  type SquareCatalogCategory,
+  type NavCategoryNode,
   isTopLevelCategory,
   mapSquareCategoryToNavCategory,
 } from "@/lib/square/types";
-import { fetchAllCategories } from "@/lib/square/catalog";
+import { buildNavCategoryTree, fetchAllCategories } from "@/lib/square/catalog";
 
 /**
  * Static navigation links that are informational pages — NOT Square-managed
@@ -39,5 +39,34 @@ export async function getNavCategories(): Promise<NavCategory[]> {
       error instanceof Error ? error.message : error
     );
     return STATIC_NAV_CATEGORIES;
+  }
+}
+
+/**
+ * Builds the hierarchical category tree for the Shop menu directly from the
+ * Square catalog.
+ *
+ * Uses the shared `fetchAllCategories()` (applies the channel filter and
+ * allowlist centrally) and `buildNavCategoryTree()` to assemble nesting. This
+ * mirrors how `getNavCategories()` fetches nav data directly via the server
+ * SDK — Square tokens never leave the server (Constitution II).
+ *
+ * Returns `source: "square"` on success. On failure returns `source: "empty"`
+ * with an empty `root` — the Shop menu is then not rendered. No fabricated
+ * categories are ever substituted (Constitution VII).
+ */
+export async function getNavCategoryTree(): Promise<{
+  root: NavCategoryNode[];
+  source: "square" | "empty";
+}> {
+  try {
+    const objects = await fetchAllCategories();
+    return { root: buildNavCategoryTree(objects), source: "square" };
+  } catch (error) {
+    console.error(
+      "getNavCategoryTree: failed to fetch category tree:",
+      error instanceof Error ? error.message : error
+    );
+    return { root: [], source: "empty" };
   }
 }

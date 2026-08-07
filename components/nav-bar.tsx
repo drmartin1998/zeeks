@@ -1,17 +1,19 @@
 "use client";
 
-import { Component } from "react";
+import { Component, useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Show } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
-import { ShoppingBag } from "lucide-react";
-import type { NavCategory, LocationBarData } from "@/lib/square/types";
+import { ChevronDown, ChevronRight, ShoppingBag } from "lucide-react";
+import type { CategoryTree, NavCategory, LocationBarData } from "@/lib/square/types";
 import { AuthDropdown } from "@/components/auth/auth-dropdown";
 import { UserMenu } from "@/components/auth/user-menu";
 import { LocationBar } from "@/components/location-bar";
 import { SearchTypeahead } from "@/components/search-typeahead/search-typeahead";
+import { ShopMegamenu } from "@/components/shop-menu/shop-megamenu";
+import { ShopMobileDrawer } from "@/components/shop-menu/shop-mobile-drawer";
 
 /** Error boundary catching Clerk component failures per FR-007. */
 class ClerkErrorBoundary extends Component<
@@ -38,21 +40,112 @@ class ClerkErrorBoundary extends Component<
 interface NavBarProps {
   /** Categories pulled from Square API. Always required — no mock data fallback. */
   categories: NavCategory[];
+  /** Hierarchical category tree for the Shop menu. Empty root → Shop menu hidden. */
+  categoryTree?: CategoryTree;
   /** Number of items in the customer's cart. 0 = empty, -1 = error/unknown. Omit to hide badge entirely. */
   cartItemCount?: number;
   /** Location bar data from Square Locations API. Null when unavailable — bar is hidden. */
   locationData?: LocationBarData | null;
 }
 
-export function NavBar({ categories, cartItemCount, locationData }: NavBarProps) {
-  const navItems = categories;
+export function NavBar({
+  categories,
+  categoryTree,
+  cartItemCount,
+  locationData,
+}: NavBarProps) {
   const pathname = usePathname();
+  const [desktopOpen, setDesktopOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Close the menus when the route changes. Adjusting state during render
+  // from a previous-pathname value is the React-recommended pattern for
+  // reacting to prop changes without a setState-in-effect.
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (pathname !== prevPathname) {
+    setPrevPathname(pathname);
+    setDesktopOpen(false);
+    setMobileOpen(false);
+  }
+
+  // Viewport detection: mobile (< 1024px) shows the drawer, desktop the megamenu.
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const update = () => setIsMobile(!mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
+  // Hover-bridge: a short delayed close lets the pointer move from the Shop
+  // button into the panel (or back) without the menu flickering shut. Entering
+  // the button or panel cancels the pending close.
+  const cancelPendingClose = useCallback(() => {
+    if (closeTimer.current) {
+      clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+    }
+  }, []);
+
+  const scheduleClose = useCallback(() => {
+    cancelPendingClose();
+    closeTimer.current = setTimeout(() => setDesktopOpen(false), 120);
+  }, [cancelPendingClose]);
+
+  const openDesktop = useCallback(() => {
+    cancelPendingClose();
+    setDesktopOpen(true);
+  }, [cancelPendingClose]);
+
+  // Close the desktop megamenu when clicking outside the menu (panel/button).
+  useEffect(() => {
+    if (!desktopOpen) return;
+    const onPointerDown = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as Node;
+      if (menuRef.current && !menuRef.current.contains(target)) {
+        setDesktopOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [desktopOpen]);
+
+  // Close the desktop megamenu on Escape.
+  useEffect(() => {
+    if (!desktopOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setDesktopOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [desktopOpen]);
 
   // The password gate page is a standalone full-screen gate; the site nav
   // (logo header) must not render on it.
   if (pathname === "/password") {
     return null;
   }
+
+  const tree = categoryTree?.root ?? [];
+  const hasShop = tree.length > 0;
+  // Catalog categories live in the Shop menu; only static/informational links
+  // (e.g. About, Events) remain in the row alongside Shop.
+  const staticLinks = hasShop
+    ? categories.filter(
+        (cat) => !tree.some((t) => t.label === cat.label)
+      )
+    : categories;
+
+  const toggleShop = () => {
+    if (isMobile) {
+      setMobileOpen((open) => !open);
+    } else {
+      setDesktopOpen((open) => !open);
+    }
+  };
 
   return (
     <header
@@ -108,7 +201,10 @@ export function NavBar({ categories, cartItemCount, locationData }: NavBarProps)
       </div>
 
       {/* Category row - scrollable below lg */}
-      <div className="border-t border-border-default bg-white">
+      <div
+        ref={menuRef}
+        className="relative border-t border-border-default bg-white"
+      >
         <div className="mx-auto flex h-[56px] max-w-[1440px] items-center gap-4 overflow-x-auto whitespace-nowrap px-4 lg:gap-8 lg:px-20 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <Link
             href="/"
@@ -116,7 +212,39 @@ export function NavBar({ categories, cartItemCount, locationData }: NavBarProps)
           >
             Home
           </Link>
-          {navItems.map((cat) => (
+
+          {hasShop && (
+            <button
+              type="button"
+              onClick={toggleShop}
+              onMouseEnter={() => !isMobile && openDesktop()}
+              onMouseLeave={() => !isMobile && scheduleClose()}
+              aria-haspopup="true"
+              aria-expanded={desktopOpen || mobileOpen}
+              className={cn(
+                "relative flex h-full shrink-0 items-center gap-1 text-sm font-semibold transition-colors",
+                desktopOpen
+                  ? "text-status-sale"
+                  : "text-text-primary hover:text-status-sale"
+              )}
+            >
+              Shop
+              {desktopOpen ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
+              {/* Active underline (matches the Figma shop-active-underline) */}
+              {desktopOpen && (
+                <span
+                  aria-hidden
+                  className="absolute inset-x-0 bottom-0 h-[3px] rounded-[1.5px] bg-status-sale"
+                />
+              )}
+            </button>
+          )}
+
+          {staticLinks.map((cat) => (
             <Link
               key={cat.label}
               href={cat.href}
@@ -131,7 +259,31 @@ export function NavBar({ categories, cartItemCount, locationData }: NavBarProps)
             </Link>
           ))}
         </div>
+
+        {/* Desktop megamenu panel (full-width, below the row) */}
+        {hasShop && !isMobile && desktopOpen && (
+          <ShopMegamenu
+            tree={tree}
+            onMouseEnter={cancelPendingClose}
+            onMouseLeave={scheduleClose}
+          />
+        )}
+
+        {/* Click-away backdrop (sibling so it doesn't trap hover) */}
+        {hasShop && !isMobile && desktopOpen && (
+          <div
+            onClick={() => setDesktopOpen(false)}
+            aria-hidden
+            data-slot="shop-backdrop"
+            className="fixed inset-x-0 top-[144px] bottom-0 z-30 bg-[#0E0E2C]/45"
+          />
+        )}
       </div>
+
+      {/* Mobile drawer */}
+      {hasShop && isMobile && mobileOpen && (
+        <ShopMobileDrawer tree={tree} onClose={() => setMobileOpen(false)} />
+      )}
 
       {/* Location bar */}
       <LocationBar locationData={locationData ?? null} />

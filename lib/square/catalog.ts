@@ -1,5 +1,6 @@
 import { catalogApi, locationId } from "@/lib/square/client";
 import {
+  type NavCategoryNode,
   type SquareCatalogCategory,
   isTopLevelCategory,
 } from "@/lib/square/types";
@@ -392,6 +393,68 @@ export function flattenCategoryTree(
   }
 
   return { slugPathByCategoryId };
+}
+
+/**
+ * Build a nav-category tree (`NavCategoryNode[]`) from a flat Square
+ * category list, for the Shop menu.
+ *
+ * Every top-level category becomes a root node whose `children` are its
+ * nested subcategories (recursively). Subcategory hrefs use the
+ * `/categories/<parent-slug>?sub=<slug>` query-parameter scheme. A leaf node
+ * has an empty `children` array and `hasChildren === false` (renders as a
+ * direct link).
+ */
+export function buildNavCategoryTree(
+  allCats: SquareCatalogCategory[]
+): NavCategoryNode[] {
+  const childrenByParent = new Map<string, SquareCatalogCategory[]>();
+  for (const cat of allCats) {
+    const pid = cat.categoryData.parentCategory?.id;
+    if (!pid) continue;
+    const siblings = childrenByParent.get(pid) ?? [];
+    siblings.push(cat);
+    childrenByParent.set(pid, siblings);
+  }
+
+  const slugifyName = (name: string): string =>
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+
+  // Build a subcategory node. `parentSlug` is the top-level category slug so
+  // subcategory links use `/categories/<parent-slug>?sub=<this-slug>`.
+  const buildNode = (
+    cat: SquareCatalogCategory,
+    parentSlug: string
+  ): NavCategoryNode => {
+    const slug = slugifyName(cat.categoryData.name);
+    const children = (childrenByParent.get(cat.id) ?? []).map((child) =>
+      buildNode(child, parentSlug)
+    );
+    return {
+      label: cat.categoryData.name,
+      href: `/categories/${parentSlug}?sub=${slug}`,
+      children,
+      hasChildren: children.length > 0,
+    };
+  };
+
+  return allCats
+    .filter(isTopLevelCategory)
+    .map((cat) => {
+      const slug = slugifyName(cat.categoryData.name);
+      const children = (childrenByParent.get(cat.id) ?? []).map((child) =>
+        buildNode(child, slug)
+      );
+      return {
+        label: cat.categoryData.name,
+        href: `/categories/${slug}`,
+        children,
+        hasChildren: children.length > 0,
+      };
+    });
 }
 
 /**
