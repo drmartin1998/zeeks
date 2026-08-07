@@ -8,7 +8,7 @@ import {
 } from "@/lib/square/types";
 import { apiSuccess, apiNotFound, apiServerError } from "@/lib/api-helpers";
 import { withRetry } from "@/lib/utils";
-import { slugify, normalizePrice, fetchAllCategories } from "@/lib/square/catalog";
+import { slugify, normalizePrice, fetchAllCategories, BRAND_KEY, buildSubcategoryTree, buildCategoryTree, flattenCategoryTree } from "@/lib/square/catalog";
 import type { CatalogObject } from "square";
 
 export async function GET(
@@ -48,25 +48,22 @@ export async function GET(
     const parentId = parent.id;
     const parentName = parent.categoryData.name;
 
-    // Build subcategory map for annotation
-    const subCategoryMap = new Map<
-      string,
-      { id: string; name: string; slug: string }
-    >();
-    for (const cat of allCats) {
-      if (
-        !isTopLevelCategory(cat) &&
-        cat.categoryData.parentCategory?.id === parentId
-      ) {
-        subCategoryMap.set(cat.id, {
-          id: cat.id,
-          name: cat.categoryData.name,
-          slug: slugify(cat.categoryData.name),
-        });
-      }
-    }
+    // Recursively resolve the full subtree below the parent (any depth) and
+    // map every descendant category to its nearest top-level-child ancestor
+    // for facet annotation. This makes deeply nested subcategories (e.g., a
+    // sub-subcategory under "Games Workshop") both searchable and roll up to
+    // the visible facet option.
+    const { descendantIds, subByDescendantId } = buildSubcategoryTree(
+      allCats,
+      parentId
+    );
 
-    const allCategoryIds = [parentId, ...subCategoryMap.keys()];
+    // Nested tree + slug-path lookup for drill-down (grandchild) filtering.
+    const categoryTree = buildCategoryTree(allCats, parentId);
+    const { slugPathByCategoryId } = flattenCategoryTree(categoryTree);
+
+    // Search parent + ALL descendants (any depth)
+    const allCategoryIds = [parentId, ...descendantIds];
 
     // ── Search items with cursor-based pagination ──────────────────
     const allItems: CatalogObject[] = [];
@@ -114,14 +111,17 @@ export async function GET(
         // Determine subcategory
         let subCategory: string | undefined;
         let subCategorySlug: string | undefined;
+        let subCategorySlugs: string[] | undefined;
         const categories =
           itemData?.categories as { id?: string }[] | undefined;
         if (categories) {
           for (const catRef of categories) {
-            if (catRef.id && subCategoryMap.has(catRef.id)) {
-              const sub = subCategoryMap.get(catRef.id)!;
+            if (catRef.id && subByDescendantId.has(catRef.id)) {
+              const sub = subByDescendantId.get(catRef.id)!;
               subCategory = sub.name;
               subCategorySlug = sub.slug;
+              subCategorySlugs =
+                slugPathByCategoryId.get(catRef.id) ?? [sub.slug];
               break;
             }
           }
@@ -135,10 +135,21 @@ export async function GET(
           categorySlug: slug,
           subCategory,
           subCategorySlug,
+          subCategorySlugs,
           price: normalizePrice(priceMoney?.amount),
           currency: priceMoney?.currency ?? "USD",
           imageUrl: undefined,
           gradient: "from-zeeks-purple to-zeeks-purple-dark",
+          brand: ((itemData?.customAttributeValues as Record<string, unknown> | undefined)?.[BRAND_KEY] as { stringValue?: string | null } | undefined)?.stringValue ?? undefined,
+          availability: variations.some((v) => {
+            const vData = v?.itemVariationData as Record<string, unknown> | undefined;
+            const overrides =
+              (vData?.locationOverrides as Record<string, unknown>[] | undefined) ?? [];
+            const override = overrides.find((o) => o.locationId === locationId) ?? overrides[0];
+            return !(override?.soldOut as boolean | undefined);
+          })
+            ? "IN_STOCK"
+            : "OUT_OF_STOCK",
         };
 
         // Validate with Zod before returning

@@ -112,7 +112,7 @@ export function CategoryProductGrid({ products, subCategories }: Props) {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
             {paginatedProducts.map((product) => (
               <GameCard
-                key={product.title}
+                key={product.catalogObjectId ?? product.title}
                 title={product.title}
                 category={
                   product.subCategory

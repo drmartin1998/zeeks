@@ -3,3 +3,7 @@ export { CategoryHero } from "./category-hero";
 export { FilterBar } from "./filter-bar";
 export { ProductGrid } from "./product-grid";
 export { Pagination } from "./pagination";
+export { FacetGroup } from "./facet-group";
+export { FacetCheckbox } from "./facet-checkbox";
+export { CategoryChips } from "./category-chips";
+export { FilterToggle } from "./filter-toggle";

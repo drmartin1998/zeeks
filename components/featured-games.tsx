@@ -46,7 +46,7 @@ export function FeaturedGames({ games }: FeaturedGamesProps) {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
             {games.map((game) => (
               <GameCard
-                key={game.title}
+                key={game.catalogObjectId ?? game.title}
                 title={game.title}
                 category={game.category}
                 categorySlug={game.categorySlug}
