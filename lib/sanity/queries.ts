@@ -26,6 +26,59 @@ export const SITE_SETTINGS_QUERY = defineQuery(`
   }
 `)
 
+export const HOME_HERO_QUERY = defineQuery(`
+  *[_type == "page" && slug.current == "/"][0]{
+    "heroBlock": pageBuilder[_type == "heroBlock"][0]{
+      _key,
+      eyebrow,
+      heading,
+      subheading,
+      image,
+      primaryCta {
+        _key,
+        label,
+        linkType,
+        externalUrl,
+        "internalSlug": internalRef->slug.current
+      },
+      secondaryCta {
+        _key,
+        label,
+        linkType,
+        externalUrl,
+        "internalSlug": internalRef->slug.current
+      }
+    }
+  }
+`)
+
+export type HomeHeroQueryResult = {
+  heroBlock: {
+    _key: string;
+    eyebrow: string | null;
+    heading: string | null;
+    subheading: string | null;
+    image: {
+      asset?: { _ref?: string } | { url?: string } | null;
+      hotspot?: { x: number; y: number; height: number; width: number } | null;
+      crop?: { top: number; bottom: number; left: number; right: number } | null;
+      _type: "image";
+    } | null;
+    primaryCta: {
+      label: string | null;
+      linkType: "internal" | "external";
+      externalUrl: string | null;
+      internalSlug: string | null;
+    } | null;
+    secondaryCta: {
+      label: string | null;
+      linkType: "internal" | "external";
+      externalUrl: string | null;
+      internalSlug: string | null;
+    } | null;
+  } | null;
+};
+
 export const PAGE_BY_SLUG_QUERY = defineQuery(`
   *[_type == "page" && slug.current == $slug][0]{
     _id,

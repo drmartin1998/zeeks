@@ -3,6 +3,9 @@ import { FeaturedCategories } from "@/components/featured-categories";
 import { FeaturedGames } from "@/components/featured-games";
 import { PromoBanner } from "@/components/promo-banner";
 import { Footer } from "@/components/footer";
+import { sanityFetch } from "@/lib/sanity/live";
+import { HOME_HERO_QUERY, type HomeHeroQueryResult } from "@/lib/sanity/queries";
+import { imageUrl, type SanityImage } from "@/lib/sanity/image";
 import {
   getSquareCategories,
   getSquareProductsByCategorySlug,
@@ -10,10 +13,26 @@ import {
 } from "@/lib/square/catalog";
 
 export default async function Home() {
-  const [squareCategories, ...featuredResults] = await Promise.all([
+  const [hero, squareCategories, ...featuredResults] = await Promise.all([
+    sanityFetch({ query: HOME_HERO_QUERY }),
     getSquareCategories(),
     getSquareProductsByCategorySlug("miniatures"),
   ]);
+
+  const heroBlock = (hero.data as HomeHeroQueryResult | null)?.heroBlock ?? null;
+
+  const toHref = (cta: {
+    label?: string | null;
+    linkType?: string | null;
+    externalUrl?: string | null;
+    internalSlug?: string | null;
+  } | null | undefined) =>
+    cta?.label
+      ? {
+          label: cta.label,
+          href: cta.internalSlug || cta.externalUrl || "",
+        }
+      : null;
 
   const featuredGames: SquareProduct[] =
     featuredResults
@@ -24,7 +43,14 @@ export default async function Home() {
   return (
     <div className="flex min-h-screen flex-col overflow-x-hidden">
       <main className="flex-1 overflow-x-hidden">
-        <HeroSection />
+        <HeroSection
+          eyebrow={heroBlock?.eyebrow ?? null}
+          heading={heroBlock?.heading ?? null}
+          subheading={heroBlock?.subheading ?? null}
+          imageUrl={heroBlock?.image ? imageUrl(heroBlock.image as SanityImage) : null}
+          primaryCta={toHref(heroBlock?.primaryCta)}
+          secondaryCta={toHref(heroBlock?.secondaryCta)}
+        />
         {squareCategories.length > 0 && (
           <FeaturedCategories
             categories={squareCategories.map((c) => ({
