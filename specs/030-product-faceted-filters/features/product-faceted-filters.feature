@@ -133,3 +133,48 @@ Feature: Faceted Product Listing Filters
     And the shopper selects the subcategory
     Then its child subcategories are revealed as a second level in the facet
     The categories-only route (/categories/[slug]) must pass the full subcategory tree so the drill-down works identically to /shop/[category]
+
+  @bug_pdp_breadcrumb_top_level_link
+  Scenario: The product detail breadcrumb links back to the top-level category listing
+    Given a product belongs to a deeply nested category hierarchy (top-level → subcategory → sub-subcategory)
+    When a shopper opens the product detail page
+    Then the breadcrumb shows the full category path from the top-level category down to the product's category
+    And the top-level category segment links to /categories/<top-level-slug>
+    And that top-level link resolves to a valid listing page (does not 404)
+    And each intermediate subcategory segment links to the top-level listing with a sub filter
+    And the final breadcrumb segment is the product title (non-link)
+
+  @bug_pdp_breadcrumb_multi_category_primary
+  Scenario: A product assigned to multiple categories resolves its breadcrumb using a visible category even when categories[0] is excluded
+    Given a product is assigned to multiple Square categories
+    And the first assigned category is not part of the visible (channel-filtered) hierarchy
+    But a later assigned category resolves up to an allowlisted top-level category
+    When a shopper opens the product detail page
+    Then the breadcrumb shows the full category path for the visible category instead of "Uncategorized"
+    And the top-level breadcrumb segment is the allowlisted top-level category (e.g. "Miniatures")
+
+  @bug_nested_subcategory_url_preselect
+  Scenario: A nested subcategory in the URL is preselected and its parent revealed
+    Given a top-level category listing page is loaded with a ?sub= URL parameter pointing to a nested subcategory
+    When the subcategory is not a direct child of the top-level category but a descendant
+    Then that nested subcategory is preselected (checked) in the subcategory facet
+    And its ancestor subcategories are revealed so the selected descendant is visible
+    And the product list filters to the products of that nested subcategory
+
+  @bug_listing_images_resolved
+  Scenario: Product listing shows the real product image from Square
+    Given a category listing page loads products via getSquareProductsByCategorySlug
+    And some items in the searchItems response carry itemData.imageIds (item-level)
+    And some items only carry image IDs at the variation level
+    And some items have no image at all
+    When the listing resolves each item's image IDs via batchGet of the IMAGE catalog objects
+    Then each item with an image is assigned its primary image URL
+    And an item with only variation-level images falls back to that URL
+    And an item with no images keeps its image empty so the gradient placeholder renders
+
+  @bug_listing_images_proportional
+  Scenario: Product card images stay proportional as the viewport changes
+    Given a product listing renders GameCard components
+    When the viewport or column width changes
+    Then the card image area scales proportionally using an aspect-ratio container (not a fixed height)
+    And the image fills that container without distorting

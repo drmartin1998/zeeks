@@ -35,7 +35,7 @@ export function GameCard({
   return (
     <div className="group flex w-full sm:max-w-[302px] flex-col overflow-hidden rounded-2xl bg-surface-primary shadow-[0_10px_28px_rgba(93,95,239,0.08)]">
       {/* Image area */}
-      <div className="relative h-[240px] w-full overflow-hidden bg-neutral-200">
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-neutral-200">
         {image ? (
           <img
             src={image}

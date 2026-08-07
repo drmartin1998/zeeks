@@ -282,6 +282,76 @@ describe("ProductListingPage nested subcategory facet", () => {
     expect(screen.queryByText("Citadel Paint Red")).not.toBeInTheDocument();
   });
 
+  it("should preselect a nested subcategory from the URL and reveal its parent (drill-down)", () => {
+    mockSearch = new URLSearchParams({ sub: "space-marines" });
+
+    const tree: CategoryTreeNode[] = [
+      {
+        id: "GW",
+        name: "Games Workshop",
+        slug: "games-workshop",
+        children: [
+          {
+            id: "SM",
+            name: "Space Marines",
+            slug: "space-marines",
+            children: [],
+          },
+          {
+            id: "AOS",
+            name: "Age of Sigmar",
+            slug: "age-of-sigmar",
+            children: [],
+          },
+        ],
+      },
+      { id: "PAINT", name: "Paints", slug: "paints", children: [] },
+    ];
+
+    render(
+      <ProductListingPage
+        category={{ slug: "miniatures", name: "Miniatures", description: "" }}
+        products={[
+          {
+            slug: "gw-space-marine",
+            title: "GW Space Marine",
+            category: "Miniatures",
+            subCategory: "Space Marines",
+            subCategorySlug: "space-marines",
+            subCategorySlugs: ["games-workshop", "space-marines"],
+            price: 40,
+            brand: "GW Store",
+            availability: "IN_STOCK",
+          },
+          {
+            slug: "citadel-paint-red",
+            title: "Citadel Paint Red",
+            category: "Miniatures",
+            subCategory: "Paints",
+            subCategorySlug: "paints",
+            subCategorySlugs: ["paints"],
+            price: 5,
+            brand: "Citadel",
+            availability: "IN_STOCK",
+          },
+        ]}
+        subCategoryTree={tree}
+      />
+    );
+
+    // The nested subcategory is preselected (checked) and its parent revealed,
+    // so both "Space Marines" and "Games Workshop" checkboxes are visible.
+    const spaceMarinesBox = screen.getAllByRole("checkbox", { name: /space marines/i })[0];
+    expect(spaceMarinesBox).toBeChecked();
+    expect(
+      screen.getAllByRole("checkbox", { name: /games workshop/i }).length
+    ).toBeGreaterThan(0);
+
+    // Filtering applies: only the Space Marines product shows; Paints is hidden.
+    expect(screen.getByText("GW Space Marine")).toBeInTheDocument();
+    expect(screen.queryByText("Citadel Paint Red")).not.toBeInTheDocument();
+  });
+
   // Selecting a grandchild filters to that grandchild's products only.
   it("should filter to a grandchild's products when a grandchild is selected", async () => {
     const user = userEvent.setup();

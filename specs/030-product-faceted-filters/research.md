@@ -159,7 +159,70 @@
 - **Track expansion in `toggleSub` by toggling the ancestor path directly**: Rejected — deriving from the tree guarantees the expanded set never drifts from the selection and avoids extra state to keep in sync.
 - **Multi-select expansion where selecting a child also keeps the parent selected**: Rejected — would change the filter semantics (selecting a child would no longer filter to only that child's products). The parent must remain un-checked while staying expanded.
 
+## 9. PDP Breadcrumb Full Category Path (Broken Subcategory Link Bug Fix)
+
+**Decision**: The product detail breadcrumb now resolves and renders the **full category path** from the top-level category down to the product's own category, instead of only climbing one level. The top-level segment links to a valid `/categories/<top-slug>` listing route (never a 404).
+
+**Root cause**: `resolveCategoryBreadcrumb` previously `batchGet`'d only the item's direct `categoryIds` and climbed at most ONE parent level. Because the intermediate parent ("Games Workshop") is usually NOT among the item's own category IDs, it fell back to `category = primary` (e.g. "40K Warhammer"), whose slug `/categories/40k-warhammer` is a **subcategory** slug that 404s on `/categories/[slug]` (which only resolves top-level categories via `getSquareCategoryBySlug`).
+
+**Data model change**: `ProductDetail` gained `categoryPath: CategoryBreadcrumb[]` (ordered top-level → deepest). `category` remains the **top-level** category (backward compatible) and `subCategory` remains the **deepest** subcategory. `ProductDetailSchema` was extended accordingly.
+
+**Implementation**:
+- `resolveCategoryBreadcrumb` now calls `fetchAllCategories()` (all channel-filtered categories) and walks `parentCategory.id` from the product's primary category up to the root (a category with no parent / top-level). It returns `{ category: <top-level>, subCategory: <deepest>, categoryPath: [top → … → deepest] }`.
+- `getProductDetailBySlug` threads `categoryPath` into the `ProductDetail` payload.
+- `components/product-detail/breadcrumb.tsx` renders `Home` / top-level link (`/categories/<top-slug>`) / each intermediate subcategory link (`/categories/<top-slug>?sub=<sub-slug>`) / product title (non-link). The `?sub=` links are handled by the existing faceted listing (`productMatchesSub` matches via `subCategorySlugs`). The "Uncategorized" fallback renders as plain text to avoid a guaranteed 404.
+
+**Alternatives considered**:
+- **Keep one-level ✅ `category`/`subCategory` and just repoint `category` to top-level**: Rejected — loses the intermediate subcategory segments (Games Workshop) that the design shows as breadcrumb segments.
+- **Render intermediate subcategories as plain text only**: Partially rejected — links are used where the target is a real category and the `?sub=` filter is meaningful; plain text is used only for the uncategorized fallback.
+
+## 10. PDP Breadcrumb Primary Category Selection (Multi-Category "Uncategorized" Bug Fix)
+
+**Decision**: `getProductDetailBySlug` no longer defaults a product's primary category to `categories[0]`. Instead it selects the **deepest assigned category that is part of the visible (channel-filtered) hierarchy and resolves up to an allowlisted top-level category**. This guarantees the breadcrumb links to a real listing page.
+
+**Root cause (verified with real data)**: A Square catalog item can be assigned to MULTIPLE categories. The first category is not always valid. Example — item "Adepta Sororitas" carries, in order:
+1. `OKNZ2HEHFVXVNPLKVZ3IPMIJ` = "40K Warhammer" — **NOT in the channel-filtered set** (`fetchAllCategories()` excludes it; it is a top-level category not on `ALLOWED_CATEGORY_IDS`). Since it was `categories[0]`, it became `primaryCategoryId`.
+2. `ZCZJWQX6WREDLATZFW3U7OCJ` = "Miniatures" (top-level, valid).
+3. `ZN4JCSPUBOC5PP33JNVRBRFS` = "Warhammer 40K" (valid; parent "Games Workshop" → parent "Miniatures").
+
+Because `resolveCategoryBreadcrumb` builds `catById` from `fetchAllCategories()` (channel-filtered), the invalid "40K Warhammer" was absent from the map → `catById.get(primaryCategoryId)` was `undefined` → the breadcrumb returned the "Uncategorized" fallback.
+
+**Implementation**:
+- Added `selectPrimaryCategoryId(itemCategoryIds, allCats)`: for each assigned category, it resolves the `parentCategory.id` chain against the channel-filtered set and keeps the category whose chain terminates at an **allowlisted top-level** category, preferring the **deepest** chain. Returns the chosen category's id (or `undefined` if none is visible).
+- `getProductDetailBySlug` now calls `fetchAllCategories()` once, passes the result to `selectPrimaryCategoryId` to choose the primary, and reuses the same set in `resolveCategoryBreadcrumb` (new optional `allCats` param) to avoid a redundant fetch.
+- For "Adepta Sororitas", category #3 ("Warhammer 40K") is chosen (deepest), and `resolveCategoryBreadcrumb` resolves `categoryPath = [Miniatures → Games Workshop → Warhammer 40K]` with top-level "Miniatures".
+
+**Alternatives considered**:
+- **Keep `categories[0]` and skip the excluded category only when it is missing from the channel set**: Rejected — a single fallback does not guarantee the chosen category resolves to an allowlisted top-level listing, and does not prefer the most specific visible category.
+- **Pick the first category that exists in the channel-filtered set (shallowest)**: Rejected — for "Adepta Sororitas" this would pick "Miniatures" directly, losing the more specific "Warhammer 40K" breadcrumb segment.
+
 ## Assumptions
 - A single brand custom attribute definition key (e.g., `"brand"`) is used across the catalog. If multiple keys exist, they will be unified in the data layer.
 - The location override data needed for availability is present in the `searchItems` response for the configured `locationId`.
 - The existing category listing page (`app/shop/[category]`) is the target for the faceted design; the search-results page is out of scope (per spec).
+
+## 11. Listing Product Images (Bug Fix: images not displayed)
+
+**Decision**: `getSquareProductsByCategorySlug` (and the mirroring `/api/catalog/products` Route Handler) now resolve each product's real image URL from the live Square catalog. `searchItems` returns `itemData.imageIds` but not the URL; the URL lives on the IMAGE catalog object's `imageData.url`.
+
+**Root cause**: The mapping set `image: ""` unconditionally, so no image was ever resolved for listing cards, and the `<img>` was fed an empty string → the gradient placeholder rendered instead of the product photo.
+
+**Implementation** (batch approach):
+1. After paginating `searchItems`, collect every item's image IDs — item-level `itemData.imageIds`, plus a variation-level fallback `itemVariationData.imageIds` (some products attach images only to a variation).
+2. `catalogApi.batchGet({ objectIds: <chunk> })` the unique image IDs in chunks of 100 (Square's batchGet object limit), collecting IMAGE objects and reading `imageData.url`.
+3. Build an `imageId → url` map, then assign each product its **first available** URL (item-level IDs are enumerated before variation-level IDs, so item-level wins).
+4. Products with no image IDs keep `image: ""` → the GameCard renders its existing gradient placeholder.
+
+Applied to both the direct catalog function (used by `/` , `/shop/[category]`, `/categories/[slug]`) and the Route Handler (Constitution II preferred architecture) for consistency.
+
+**Alternatives considered**:
+- **Use `batchGet` with `includeRelatedObjects: true` on the item IDs** (like the PDP): Rejected for the listing — that returns the full item objects plus related objects, which is heavier than needed and would have to be done per item (or in large batches that re-fetch whole items). Resolving only the IMAGE object IDs is lighter and sufficient.
+- **Resolve images client-side lazily**: Rejected — violates Server Components First (Constitution I); images are resolved server-side.
+
+## 12. Proportional Product Card Images (Fix: no cropping on resize)
+
+**Decision**: The `GameCard` image area now uses an **aspect-ratio container** (`aspect-[4/3]`, matching the ~304:220 card design ratio) instead of a fixed `h-[240px]`. As the responsive grid column width changes, the container scales its height proportionally (aspect ratio is a function of width), so the image stays proportional and never crops/distorts. `object-cover` is retained so the image fills the box proportionally. The product-detail gallery already used `aspect-square`, so it needed no change.
+
+**Alternatives considered**:
+- **Keep fixed `h-[240px]`**: Rejected — crops the image on narrow columns / distorts aspect ratio as the grid reflows.
+- **`object-contain`**: Rejected — would leave letterboxing gaps; `object-cover` inside an aspect-ratio box is the intended proportional fill.

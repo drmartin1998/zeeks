@@ -1,10 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterAll } from "vitest";
 
 // Mock the catalog API for both search (categories) and searchItems (products)
 vi.mock("@/lib/square/client", () => ({
   catalogApi: {
     search: vi.fn().mockResolvedValue({}),
     searchItems: vi.fn().mockResolvedValue({}),
+    batchGet: vi.fn().mockResolvedValue({}),
   },
   locationId: "TEST_LOCATION",
 }));
@@ -610,6 +611,186 @@ describe("getSquareProductsByCategorySlug brand + availability facets", () => {
 });
 
 // -------------------------------------------------------------------------
+// Listing image resolution (bug fix: product images not displayed)
+// -------------------------------------------------------------------------
+
+describe("getSquareProductsByCategorySlug image resolution", () => {
+  const ORIGINAL_CHANNEL_ID = process.env.SQUARE_CHANNEL_ID;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env.SQUARE_CHANNEL_ID = "TEST_CHANNEL";
+  });
+
+  afterAll(() => {
+    if (ORIGINAL_CHANNEL_ID === undefined) {
+      delete process.env.SQUARE_CHANNEL_ID;
+    } else {
+      process.env.SQUARE_CHANNEL_ID = ORIGINAL_CHANNEL_ID;
+    }
+  });
+
+  async function mockCategoryAndItems(items: unknown[]) {
+    const { catalogApi } = await import("@/lib/square/client");
+    vi.mocked(catalogApi.search).mockResolvedValue({
+      objects: [
+        {
+          id: MINIATURES_ID,
+          type: "CATEGORY" as const,
+          categoryData: { name: "Miniatures", channels: ["TEST_CHANNEL"] },
+        },
+      ],
+    });
+    vi.mocked(catalogApi.searchItems).mockResolvedValue({
+      items: items as never,
+    });
+  }
+
+  it("should resolve the primary image URL from batched IMAGE objects", async () => {
+    await mockCategoryAndItems([
+      {
+        type: "ITEM",
+        id: "ITEM_WITH_IMG",
+        itemData: {
+          name: "Adepta Sororitas",
+          imageIds: ["IMG_1", "IMG_2"],
+          variations: [
+            {
+              type: "ITEM_VARIATION",
+              itemVariationData: {
+                priceMoney: { amount: 5000n, currency: "USD" },
+              },
+            },
+          ],
+        },
+      },
+      {
+        type: "ITEM",
+        id: "ITEM_NO_IMG",
+        itemData: {
+          name: "Ork Boyz",
+          variations: [
+            {
+              type: "ITEM_VARIATION",
+              itemVariationData: {
+                priceMoney: { amount: 3500n, currency: "USD" },
+              },
+            },
+          ],
+        },
+      },
+    ]);
+
+    const { catalogApi } = await import("@/lib/square/client");
+    vi.mocked(catalogApi.batchGet).mockResolvedValue({
+      objects: [
+        {
+          type: "IMAGE",
+          id: "IMG_1",
+          imageData: { url: "https://square.example/img1.png" },
+        },
+        {
+          type: "IMAGE",
+          id: "IMG_2",
+          imageData: { url: "https://square.example/img2.png" },
+        },
+      ] as never,
+    });
+
+    const { getSquareProductsByCategorySlug } = await import(
+      "@/lib/square/catalog"
+    );
+    const products = await getSquareProductsByCategorySlug("miniatures");
+
+    expect(products).not.toBeNull();
+    const byTitle = Object.fromEntries(
+      products!.map((p) => [p.title, p.image])
+    );
+
+    // Primary (first) image URL is used for items that have images.
+    expect(byTitle["Adepta Sororitas"]).toBe("https://square.example/img1.png");
+    // Items with no images keep image: "" (gradient placeholder).
+    expect(byTitle["Ork Boyz"]).toBe("");
+
+    // batchGet must be called with the collected image IDs.
+    expect(catalogApi.batchGet).toHaveBeenCalledWith({
+      objectIds: ["IMG_1", "IMG_2"],
+    });
+  });
+
+  it("should fall back to variation-level image IDs when the item has none", async () => {
+    await mockCategoryAndItems([
+      {
+        type: "ITEM",
+        id: "ITEM_VAR_IMG",
+        itemData: {
+          name: "Stormcast Eternals",
+          // no item-level imageIds
+          variations: [
+            {
+              type: "ITEM_VARIATION",
+              itemVariationData: {
+                priceMoney: { amount: 4500n, currency: "USD" },
+                imageIds: ["VAR_IMG_1"],
+              },
+            },
+          ],
+        },
+      },
+    ]);
+
+    const { catalogApi } = await import("@/lib/square/client");
+    vi.mocked(catalogApi.batchGet).mockResolvedValue({
+      objects: [
+        {
+          type: "IMAGE",
+          id: "VAR_IMG_1",
+          imageData: { url: "https://square.example/varimg.png" },
+        },
+      ] as never,
+    });
+
+    const { getSquareProductsByCategorySlug } = await import(
+      "@/lib/square/catalog"
+    );
+    const products = await getSquareProductsByCategorySlug("miniatures");
+
+    expect(products).not.toBeNull();
+    expect(products![0].image).toBe("https://square.example/varimg.png");
+  });
+
+  it("should conserve batchGet calls when no items have images", async () => {
+    await mockCategoryAndItems([
+      {
+        type: "ITEM",
+        id: "ITEM_BLANK",
+        itemData: {
+          name: "Plain Item",
+          variations: [
+            {
+              type: "ITEM_VARIATION",
+              itemVariationData: {
+                priceMoney: { amount: 2000n, currency: "USD" },
+              },
+            },
+          ],
+        },
+      },
+    ]);
+
+    const { catalogApi } = await import("@/lib/square/client");
+    const products = await (
+      await import("@/lib/square/catalog")
+    ).getSquareProductsByCategorySlug("miniatures");
+
+    expect(products).not.toBeNull();
+    expect(products![0].image).toBe("");
+    // No image IDs collected → batchGet must not be called.
+    expect(catalogApi.batchGet).not.toHaveBeenCalled();
+  });
+});
+
+// -------------------------------------------------------------------------
 // Recursive (nested) subcategory behavior — "Games Workshop" bug fix
 // -------------------------------------------------------------------------
 
@@ -979,6 +1160,282 @@ describe("flattenCategoryTree", () => {
     expect(slugPathByCategoryId.get("SM")).toEqual([
       "games-workshop",
       "space-marines",
+    ]);
+  });
+});
+
+// -------------------------------------------------------------------------
+// PDP breadcrumb — full category path resolution (bug fix)
+// -------------------------------------------------------------------------
+
+describe("getProductDetailBySlug category breadcrumb path", () => {
+  const ORIGINAL_CHANNEL_ID = process.env.SQUARE_CHANNEL_ID;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env.SQUARE_CHANNEL_ID = "TEST_CHANNEL";
+  });
+
+  afterAll(() => {
+    if (ORIGINAL_CHANNEL_ID === undefined) {
+      delete process.env.SQUARE_CHANNEL_ID;
+    } else {
+      process.env.SQUARE_CHANNEL_ID = ORIGINAL_CHANNEL_ID;
+    }
+  });
+
+  /**
+   * Category tree: Miniatures (top-level) → Games Workshop → Warhammer 40K.
+   * The product "Adepta Sororitas" lives in the deepest category (Warhammer 40K).
+   */
+  async function mockDeepHierarchy() {
+    const { catalogApi } = await import("@/lib/square/client");
+
+    vi.mocked(catalogApi.search).mockResolvedValue({
+      objects: [
+        {
+          id: MINIATURES_ID,
+          type: "CATEGORY" as const,
+          categoryData: { name: "Miniatures", channels: ["TEST_CHANNEL"] },
+        },
+        {
+          id: "GW",
+          type: "CATEGORY" as const,
+          categoryData: {
+            name: "Games Workshop",
+            parentCategory: { id: MINIATURES_ID },
+            channels: ["TEST_CHANNEL"],
+          },
+        },
+        {
+          id: "WH40K",
+          type: "CATEGORY" as const,
+          categoryData: {
+            name: "Warhammer 40K",
+            parentCategory: { id: "GW" },
+            channels: ["TEST_CHANNEL"],
+          },
+        },
+      ],
+    });
+
+    // Step 1: slug search returns the item.
+    vi.mocked(catalogApi.searchItems).mockResolvedValueOnce({
+      items: [
+        {
+          type: "ITEM",
+          id: "ITEM_ADE",
+          itemData: {
+            name: "Adepta Sororitas",
+            categories: [{ id: "WH40K" }],
+          },
+        },
+      ],
+    });
+
+    // Step 3: batchGet returns full item detail (variations etc.).
+    vi.mocked(catalogApi.batchGet).mockResolvedValue({
+      objects: [
+        {
+          type: "ITEM",
+          id: "ITEM_ADE",
+          itemData: {
+            name: "Adepta Sororitas",
+            categories: [{ id: "WH40K" }],
+            variations: [
+              {
+                type: "ITEM_VARIATION",
+                itemVariationData: {
+                  priceMoney: { amount: 5000n, currency: "USD" },
+                },
+              },
+            ],
+          },
+        },
+      ] as never,
+      relatedObjects: [] as never,
+    });
+  }
+
+  it("should resolve the top-level category and full path for a deeply nested product", async () => {
+    await mockDeepHierarchy();
+
+    const { getProductDetailBySlug } = await import("@/lib/square/catalog");
+    const product = await getProductDetailBySlug("adepta-sororitas");
+
+    expect(product).not.toBeNull();
+    // `category` must be the TOP-LEVEL category so the breadcrumb link works.
+    expect(product!.category).toEqual({
+      name: "Miniatures",
+      slug: "miniatures",
+    });
+    // `subCategory` is the product's own (deepest) subcategory.
+    expect(product!.subCategory).toEqual({
+      name: "Warhammer 40K",
+      slug: "warhammer-40k",
+    });
+    // Full path, top-level first: Miniatures → Games Workshop → Warhammer 40K.
+    expect(product!.categoryPath).toEqual([
+      { name: "Miniatures", slug: "miniatures" },
+      { name: "Games Workshop", slug: "games-workshop" },
+      { name: "Warhammer 40K", slug: "warhammer-40k" },
+    ]);
+  });
+
+  it("should fall back to Uncategorized when the product has no category", async () => {
+    const { catalogApi } = await import("@/lib/square/client");
+
+    vi.mocked(catalogApi.search).mockResolvedValue({ objects: [] });
+
+    vi.mocked(catalogApi.searchItems).mockResolvedValueOnce({
+      items: [
+        {
+          type: "ITEM",
+          id: "ITEM_NO_CAT",
+          itemData: {
+            name: "No Category Item",
+            categories: [],
+          },
+        },
+      ],
+    });
+
+    vi.mocked(catalogApi.batchGet).mockResolvedValue({
+      objects: [
+        {
+          type: "ITEM",
+          id: "ITEM_NO_CAT",
+          itemData: {
+            name: "No Category Item",
+            variations: [
+              {
+                type: "ITEM_VARIATION",
+                itemVariationData: {
+                  priceMoney: { amount: 1000n, currency: "USD" },
+                },
+              },
+            ],
+          },
+        },
+      ] as never,
+      relatedObjects: [] as never,
+    });
+
+    const { getProductDetailBySlug } = await import("@/lib/square/catalog");
+    const product = await getProductDetailBySlug("no-category-item");
+
+    expect(product).not.toBeNull();
+    expect(product!.category).toEqual({
+      name: "Uncategorized",
+      slug: "uncategorized",
+    });
+    expect(product!.categoryPath).toEqual([
+      { name: "Uncategorized", slug: "uncategorized" },
+    ]);
+    expect(product!.subCategory).toBeUndefined();
+  });
+
+  it("should pick a visible category when categories[0] is excluded but a later category is valid", async () => {
+    const { catalogApi } = await import("@/lib/square/client");
+
+    // Channel-filtered hierarchy. The "40K Warhammer" top-level category is NOT
+    // in ALLOWED_CATEGORY_IDS (only Miniatures + Hobby Supplies are), so it is
+    // filtered out of `fetchAllCategories()`.
+    vi.mocked(catalogApi.search).mockResolvedValue({
+      objects: [
+        {
+          id: MINIATURES_ID,
+          type: "CATEGORY" as const,
+          categoryData: { name: "Miniatures", channels: ["TEST_CHANNEL"] },
+        },
+        {
+          id: "GW",
+          type: "CATEGORY" as const,
+          categoryData: {
+            name: "Games Workshop",
+            parentCategory: { id: MINIATURES_ID },
+            channels: ["TEST_CHANNEL"],
+          },
+        },
+        {
+          id: "WH40K",
+          type: "CATEGORY" as const,
+          categoryData: {
+            name: "Warhammer 40K",
+            parentCategory: { id: "GW" },
+            channels: ["TEST_CHANNEL"],
+          },
+        },
+      ],
+    });
+
+    // Step 1: slug search returns the item.
+    vi.mocked(catalogApi.searchItems).mockResolvedValueOnce({
+      items: [
+        {
+          type: "ITEM",
+          id: "ITEM_ADE",
+          itemData: {
+            name: "Adepta Sororitas",
+            // categories[0] is the INVALID "40K Warhammer" (excluded top-level);
+            // a later category ("WH40K") is valid and resolves to Miniatures.
+            categories: [
+              { id: "40K_WARHAMMER_EXCLUDED" },
+              { id: MINIATURES_ID },
+              { id: "WH40K" },
+            ],
+          },
+        },
+      ],
+    });
+
+    // Step 3: batchGet returns full item detail.
+    vi.mocked(catalogApi.batchGet).mockResolvedValue({
+      objects: [
+        {
+          type: "ITEM",
+          id: "ITEM_ADE",
+          itemData: {
+            name: "Adepta Sororitas",
+            categories: [
+              { id: "40K_WARHAMMER_EXCLUDED" },
+              { id: MINIATURES_ID },
+              { id: "WH40K" },
+            ],
+            variations: [
+              {
+                type: "ITEM_VARIATION",
+                itemVariationData: {
+                  priceMoney: { amount: 5000n, currency: "USD" },
+                },
+              },
+            ],
+          },
+        },
+      ] as never,
+      relatedObjects: [] as never,
+    });
+
+    const { getProductDetailBySlug } = await import("@/lib/square/catalog");
+    const product = await getProductDetailBySlug("adepta-sororitas");
+
+    expect(product).not.toBeNull();
+    // Must NOT resolve to "Uncategorized" even though categories[0] is invalid.
+    // The deepest valid category (WH40K) is preferred, so the top-level is
+    // "Miniatures" (allowlisted) and the full path is Miniatures → Games
+    // Workshop → Warhammer 40K.
+    expect(product!.category).toEqual({
+      name: "Miniatures",
+      slug: "miniatures",
+    });
+    expect(product!.subCategory).toEqual({
+      name: "Warhammer 40K",
+      slug: "warhammer-40k",
+    });
+    expect(product!.categoryPath).toEqual([
+      { name: "Miniatures", slug: "miniatures" },
+      { name: "Games Workshop", slug: "games-workshop" },
+      { name: "Warhammer 40K", slug: "warhammer-40k" },
     ]);
   });
 });

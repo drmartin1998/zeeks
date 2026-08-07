@@ -126,10 +126,22 @@ export function ProductListingPage({
   const initialBrands = searchParams.getAll("brand");
   const initialAvailability = searchParams.getAll("availability");
 
+  // Resolve the hierarchical subcategory tree. When the server provides a
+  // full tree, use it; otherwise fall back to the flat subcategories (leaf-only
+  // tree) so backward-compatible consumers keep working.
+  const subTree = useMemo(() => {
+    if (subCategoryTree && subCategoryTree.length > 0) return subCategoryTree;
+    return flatTreeFromSubs(subCategories ?? []);
+  }, [subCategoryTree, subCategories]);
+
+  // All subcategory slugs anywhere in the tree (top-level children, their
+  // children, grandchildren, ...). Used to validate URL/subcategory filters so
+  // a nested subcategory (e.g., "warhammer-old-world" under "Games Workshop")
+  // is recognized and preselected even though it is not a direct child.
+  const allSubSlugs = useMemo(() => collectAllSlugs(subTree), [subTree]);
+
   const [activeSubs, setActiveSubs] = useState<string[]>(
-    initialSub && subCategories?.some((s) => s.slug === initialSub)
-      ? [initialSub]
-      : []
+    initialSub && allSubSlugs.includes(initialSub) ? [initialSub] : []
   );
   const [activeBrands, setActiveBrands] = useState<string[]>(initialBrands);
   const [activeAvailability, setActiveAvailability] = useState<Availability[]>(
@@ -211,14 +223,6 @@ export function ProductListingPage({
       )
     );
   }, [subFiltered, activeAvailability]);
-
-  // Resolve the hierarchical subcategory tree. When the server provides a
-  // full tree, use it; otherwise fall back to the flat subcategories (leaf-only
-  // tree) so backward-compatible consumers keep working.
-  const subTree = useMemo(() => {
-    if (subCategoryTree && subCategoryTree.length > 0) return subCategoryTree;
-    return flatTreeFromSubs(subCategories ?? []);
-  }, [subCategoryTree, subCategories]);
 
   // Slugs of subcategory nodes that should reveal their children (drill-down
   // expansion). Separated from the filter selection (`activeSubs`): when a child

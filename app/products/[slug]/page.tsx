@@ -41,8 +41,7 @@ export default async function ProductDetailPage({ params }: Props) {
       <main className="flex-1 overflow-x-hidden">
         {/* Breadcrumb navigation */}
         <Breadcrumb
-          category={product.category}
-          subCategory={product.subCategory}
+          categoryPath={product.categoryPath}
           productTitle={product.title}
         />
 

@@ -85,6 +85,65 @@ export async function GET(
       cursor = result.cursor;
     } while (cursor);
 
+    // ── Resolve product images via batchGet ────────────────────────
+    // `searchItems` returns `itemData.imageIds` but not the image URL. Collect
+    // every item's image IDs (item-level + variation-level fallback), fetch the
+    // IMAGE objects in batches of 100, and build an id → url map. Items with no
+    // images leave `imageUrl` undefined so the GameCard shows its placeholder.
+    const imageIdsByItemId = new Map<string, string[]>();
+    const imageIdSet = new Set<string>();
+
+    for (const item of allItems) {
+      if (item.type !== "ITEM") continue;
+      const raw = item as unknown as Record<string, unknown>;
+      const itemData = raw.itemData as Record<string, unknown> | undefined;
+      if (!itemData) continue;
+
+      const ids: string[] = [];
+      const itemImageIds = (itemData.imageIds as string[] | undefined) ?? [];
+      ids.push(...itemImageIds);
+
+      const variations =
+        (itemData.variations as Record<string, unknown>[] | undefined) ?? [];
+      for (const v of variations) {
+        const vData = v?.itemVariationData as Record<string, unknown> | undefined;
+        const varImageIds = (vData?.imageIds as string[] | undefined) ?? [];
+        ids.push(...varImageIds);
+      }
+
+      if (ids.length > 0) {
+        imageIdsByItemId.set(item.id, ids);
+        for (const id of ids) imageIdSet.add(id);
+      }
+    }
+
+    const imageUrlById = new Map<string, string>();
+    const allImageIds = [...imageIdSet];
+    for (let i = 0; i < allImageIds.length; i += 100) {
+      const chunk = allImageIds.slice(i, i + 100);
+      const res = await withRetry(() =>
+        catalogApi.batchGet({ objectIds: chunk })
+      );
+      const objects = res.objects ?? [];
+      for (const obj of objects) {
+        const objRaw = obj as unknown as Record<string, unknown>;
+        if (obj.type === "IMAGE" && objRaw.imageData) {
+          const imgData = objRaw.imageData as Record<string, unknown>;
+          const url = imgData.url as string | undefined;
+          if (url) imageUrlById.set(obj.id, url);
+        }
+      }
+    }
+
+    const resolvePrimaryImage = (itemId: string): string | undefined => {
+      const ids = imageIdsByItemId.get(itemId) ?? [];
+      for (const id of ids) {
+        const url = imageUrlById.get(id);
+        if (url) return url;
+      }
+      return undefined;
+    };
+
     // ── Transform to Products ─────────────────────────────────────
     const products: Product[] = allItems
       .filter(
@@ -138,7 +197,7 @@ export async function GET(
           subCategorySlugs,
           price: normalizePrice(priceMoney?.amount),
           currency: priceMoney?.currency ?? "USD",
-          imageUrl: undefined,
+          imageUrl: resolvePrimaryImage(item.id),
           gradient: "from-zeeks-purple to-zeeks-purple-dark",
           brand: ((itemData?.customAttributeValues as Record<string, unknown> | undefined)?.[BRAND_KEY] as { stringValue?: string | null } | undefined)?.stringValue ?? undefined,
           availability: variations.some((v) => {

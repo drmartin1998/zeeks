@@ -489,6 +489,69 @@ export async function getSquareProductsByCategorySlug(
       cursor = nextCursor;
     } while (cursor);
 
+    // ── Step 3: resolve product images via batchGet ────────────────────
+    // `searchItems` returns `itemData.imageIds` for items that have images,
+    // but the URL itself lives on the IMAGE catalog object. Collect every
+    // item's image IDs (item-level, with variation-level as a fallback since
+    // some products only attach images to a variation), then fetch the IMAGE
+    // objects in batches of 100 (Square's batchGet object limit) and build an
+    // id → url map. Items with no images simply keep `image: ""` so the
+    // GameCard renders its gradient placeholder.
+    const imageIdsByItemId = new Map<string, string[]>();
+    const imageIdSet = new Set<string>();
+
+    for (const item of allItems) {
+      if (item.type !== "ITEM") continue;
+      const raw = item as unknown as Record<string, unknown>;
+      const itemData = raw.itemData as Record<string, unknown> | undefined;
+      if (!itemData) continue;
+
+      const ids: string[] = [];
+      const itemImageIds = (itemData.imageIds as string[] | undefined) ?? [];
+      ids.push(...itemImageIds);
+
+      // Fallback: images may live only at the variation level.
+      const variations =
+        (itemData.variations as Record<string, unknown>[] | undefined) ?? [];
+      for (const v of variations) {
+        const vData = v?.itemVariationData as Record<string, unknown> | undefined;
+        const varImageIds = (vData?.imageIds as string[] | undefined) ?? [];
+        ids.push(...varImageIds);
+      }
+
+      if (ids.length > 0) {
+        imageIdsByItemId.set(item.id, ids);
+        for (const id of ids) imageIdSet.add(id);
+      }
+    }
+
+    const imageUrlById = new Map<string, string>();
+    const allImageIds = [...imageIdSet];
+    for (let i = 0; i < allImageIds.length; i += 100) {
+      const chunk = allImageIds.slice(i, i + 100);
+      const res = await catalogApi.batchGet({ objectIds: chunk });
+      const objects = res.objects ?? [];
+      for (const obj of objects) {
+        const objRaw = obj as unknown as Record<string, unknown>;
+        if (obj.type === "IMAGE" && objRaw.imageData) {
+          const imgData = objRaw.imageData as Record<string, unknown>;
+          const url = imgData.url as string | undefined;
+          if (url) imageUrlById.set(obj.id, url);
+        }
+      }
+    }
+
+    // Resolve the first available URL for an item, preferring item-level
+    // imageIds over the variation-level fallback (order preserved above).
+    const resolvePrimaryImage = (itemId: string): string => {
+      const ids = imageIdsByItemId.get(itemId) ?? [];
+      for (const id of ids) {
+        const url = imageUrlById.get(id);
+        if (url) return url;
+      }
+      return "";
+    };
+
     return allItems
       .filter(
         (item): item is CatalogObject.Item =>
@@ -571,7 +634,7 @@ export async function getSquareProductsByCategorySlug(
           price: normalizePrice(priceMoney?.amount),
           minPrice,
           maxPrice,
-          image: "",
+          image: resolvePrimaryImage(item.id),
           gradient: "from-zeeks-purple to-zeeks-purple-dark",
           catalogObjectId: item.id,
           variationId: (firstVariation?.id as string | undefined) ?? item.id,
@@ -604,58 +667,143 @@ export async function getSquareProductsByCategorySlug(
 type CategoryBreadcrumbData = { name: string; slug: string };
 
 /**
- * Resolve a category breadcrumb from the item's category IDs using a targeted
- * `batchGet` of only those categories (instead of fetching the entire catalog
- * of categories). Returns the deepest category as the subCategory and its
- * parent (if any) as the top-level category.
+ * Select which of a product's assigned categories should drive its breadcrumb.
+ *
+ * A Square catalog item can be assigned to MULTIPLE categories, and the first
+ * one (`categories[0]`) is not necessarily part of the visible
+ * (channel-filtered + allowlisted-top-level) hierarchy. If `categories[0]` is
+ * an excluded category, treating it as the primary would make the breadcrumb
+ * resolve to "Uncategorized".
+ *
+ * This picks the MOST SPECIFIC (deepest) category that:
+ *  1. exists in the channel-filtered set (`allCats`), AND
+ *  2. resolves up its `parentCategory.id` chain to a top-level category in
+ *     `ALLOWED_CATEGORY_IDS` (guaranteeing the breadcrumb links to a real
+ *     listing page).
+ *
+ * Returns the chosen category's id, or `undefined` if no assigned category is
+ * part of the visible hierarchy.
+ */
+function selectPrimaryCategoryId(
+  itemCategoryIds: string[],
+  allCats: SquareCatalogCategory[]
+): string | undefined {
+  const catById = new Map(allCats.map((o) => [o.id, o]));
+
+  // Resolve a category up its parent chain. Returns the ordered chain from the
+  // top-level root down to the given category, or undefined if:
+  //  - the category is not in the channel-filtered set, or
+  //  - any ancestor is missing from the set, or
+  //  - the top-most reachable category is NOT an allowlisted top-level category.
+  const resolveToVisibleRoot = (
+    id: string
+  ): SquareCatalogCategory[] | undefined => {
+    const chain: SquareCatalogCategory[] = [];
+    const seen = new Set<string>();
+    let current = catById.get(id);
+    while (current && current.type === "CATEGORY" && !seen.has(current.id)) {
+      seen.add(current.id);
+      chain.unshift(current);
+      const parentId: string | undefined =
+        current.categoryData.parentCategory?.id;
+      current = parentId ? catById.get(parentId) : undefined;
+    }
+    if (chain.length === 0) return undefined;
+    // The top-most reachable category must be an ALLOWLISTED TOP-LEVEL
+    // category (no parent within the visible set). Otherwise it is not part of
+    // a fully-visible hierarchy (e.g. its real root is excluded).
+    const root = chain[0];
+    if (root.categoryData.parentCategory?.id) return undefined;
+    if (!ALLOWED_CATEGORY_IDS.includes(root.id)) return undefined;
+    return chain;
+  };
+
+  let bestChain: SquareCatalogCategory[] | undefined;
+  for (const id of itemCategoryIds) {
+    const chain = resolveToVisibleRoot(id);
+    if (!chain) continue;
+    // Prefer the deepest/most specific valid category so the breadcrumb is
+    // meaningful (e.g. Warhammer 40K over Miniatures directly).
+    if (!bestChain || chain.length > bestChain.length) {
+      bestChain = chain;
+    }
+  }
+  return bestChain?.[bestChain.length - 1].id;
+}
+
+/**
+ * Resolve a category breadcrumb from the item's category IDs by walking the
+ * full parent chain up to the top-level category.
+ *
+ * This uses `fetchAllCategories()` (all channel-filtered categories) so we can
+ * climb from the product's primary category through every intermediate parent
+ * to the root via `parentCategory.id`. The previous implementation could only
+ * climb ONE level because it `batchGet`'d only the item's own category IDs,
+ * so a product's subcategory link often pointed at a non-top-level slug that
+ * 404'd on `/categories/[slug]`.
+ *
+ * Returns:
+ *  - `category`  — the TOP-LEVEL category (e.g. "Miniatures"), so the
+ *    breadcrumb's primary link goes to a valid `/categories/<top-slug>` route.
+ *  - `subCategory` — the deepest (product's own) subcategory, for backward
+ *    compatibility.
+ *  - `categoryPath` — the full ordered path from top-level → deepest
+ *    (e.g. [Miniatures, Games Workshop, Warhammer 40K]), enabling the
+ *    breadcrumb to render every intermediate segment.
  */
 async function resolveCategoryBreadcrumb(
   categoryIds: string[],
-  primaryCategoryId?: string
-): Promise<{ category: CategoryBreadcrumbData; subCategory?: CategoryBreadcrumbData }> {
+  primaryCategoryId?: string,
+  allCats?: SquareCatalogCategory[]
+): Promise<{
+  category: CategoryBreadcrumbData;
+  subCategory?: CategoryBreadcrumbData;
+  categoryPath: CategoryBreadcrumbData[];
+}> {
   const fallback: CategoryBreadcrumbData = {
     name: "Uncategorized",
     slug: "uncategorized",
   };
   if (!primaryCategoryId || categoryIds.length === 0) {
-    return { category: fallback };
+    return { category: fallback, categoryPath: [fallback] };
   }
 
-  const catResponse = await catalogApi.batchGet({ objectIds: categoryIds });
-  const catObjects = catResponse.objects ?? [];
-  const catById = new Map(catObjects.map((o) => [o.id, o]));
+  // Fetch all channel-filtered categories once so we can walk the full parent
+  // chain from the product's own category up to the top-level root. The caller
+  // may pass them in to avoid a redundant fetch.
+  const allCatsResolved = allCats ?? (await fetchAllCategories());
+  const catById = new Map(allCatsResolved.map((o) => [o.id, o]));
   const primary = catById.get(primaryCategoryId);
 
   if (!primary || primary.type !== "CATEGORY") {
-    return { category: fallback };
+    return { category: fallback, categoryPath: [fallback] };
   }
 
-  const primaryData = primary.categoryData as {
-    name?: string;
-    parentCategory?: { id?: string };
-  };
-  const category: CategoryBreadcrumbData = {
-    name: primaryData.name ?? "Uncategorized",
-    slug: slugify(primaryData.name ?? "Uncategorized"),
+  const toSegment = (cat: SquareCatalogCategory): CategoryBreadcrumbData => {
+    const name = cat.categoryData.name ?? "Uncategorized";
+    return { name, slug: slugify(name) };
   };
 
-  const parentId = primaryData.parentCategory?.id;
-  if (parentId && catById.has(parentId)) {
-    const parent = catById.get(parentId);
-    const parentRaw = parent as unknown as Record<string, unknown>;
-    const parentData = parentRaw.categoryData as
-      | { name?: string }
-      | undefined;
-    return {
-      category: {
-        name: parentData?.name ?? category.name,
-        slug: slugify(parentData?.name ?? category.name),
-      },
-      subCategory: category,
-    };
+  // Climb from the product's category up to the root (a category with no
+  // parent). unshift builds the array root-first.
+  const chain: SquareCatalogCategory[] = [];
+  const seen = new Set<string>();
+  let current: SquareCatalogCategory | undefined = primary;
+  while (current && current.type === "CATEGORY" && !seen.has(current.id)) {
+    seen.add(current.id);
+    chain.unshift(current);
+    const parentId: string | undefined =
+      current.categoryData.parentCategory?.id;
+    current = parentId ? catById.get(parentId) : undefined;
   }
 
-  return { category };
+  // chain[0] is the top-most reachable category within the channel-filtered set.
+  const categoryPath = chain.map(toSegment);
+  const category: CategoryBreadcrumbData = categoryPath[0] ?? fallback;
+  const subCategory =
+    chain.length > 1 ? categoryPath[categoryPath.length - 1] : undefined;
+
+  return { category, subCategory, categoryPath };
 }
 
 interface RelatedProductData {
@@ -793,25 +941,34 @@ export async function getProductDetailBySlug(
       }
     }
 
-    // Step 4: Resolve category breadcrumb + related products in parallel.
+    // Step 4: Resolve the category breadcrumb + related products in parallel.
     // Both only depend on the item's primary category ID, so we batch the
     // category lookup (a targeted `batchGet` of the item's category IDs, not
     // a full catalog search) concurrently with the related-products query.
     const categories =
       (itemData.categories as { id?: string }[]) ?? [];
-    const primaryCategoryId = categories[0]?.id;
     const categoryIds = categories
       .map((c) => c.id)
       .filter((id): id is string => !!id);
 
+    // A Square item can be assigned to MULTIPLE categories, and the first one
+    // is not always part of the visible (channel-filtered) hierarchy. Fetch the
+    // channel-filtered categories ONCE and pick the deepest category that
+    // resolves to an allowlisted top-level category, so the breadcrumb links to
+    // a real listing page instead of falling back to "Uncategorized". The same
+    // set is reused by `resolveCategoryBreadcrumb` to avoid a second fetch.
+    const allCats = await fetchAllCategories();
+    const primaryCategoryId = selectPrimaryCategoryId(categoryIds, allCats);
+
     // Run the two independent network calls in parallel, then assemble the
     // related products with breadcrumb labels once both have resolved.
     const [breadcrumbs, relatedRaw] = await Promise.all([
-      resolveCategoryBreadcrumb(categoryIds, primaryCategoryId),
+      resolveCategoryBreadcrumb(categoryIds, primaryCategoryId, allCats),
       resolveRelatedProducts(primaryCategoryId, itemId),
     ]);
     const categoryBreadcrumb = breadcrumbs.category;
     const subCategoryBreadcrumb = breadcrumbs.subCategory;
+    const categoryPathBreadcrumb = breadcrumbs.categoryPath;
     const relatedProducts: import("@/lib/square/types").Product[] =
       relatedRaw.map((rel) => ({
         ...rel,
@@ -874,6 +1031,7 @@ export async function getProductDetailBySlug(
       categorySlug: categoryBreadcrumb.slug,
       subCategory: subCategoryBreadcrumb,
       subCategorySlug: subCategoryBreadcrumb?.slug,
+      categoryPath: categoryPathBreadcrumb,
       price: normalizePrice(firstVarPriceMoney?.amount),
       currency: firstVarPriceMoney?.currency ?? "USD",
       imageUrl: images[0],

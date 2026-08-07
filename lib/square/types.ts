@@ -202,6 +202,10 @@ export const ProductDetailSchema = ProductSchema.extend({
   variations: z.array(ProductVariationSchema),
   category: CategoryBreadcrumbSchema,
   subCategory: CategoryBreadcrumbSchema.optional(),
+  // Full category path from top-level → deepest subcategory (top-level first).
+  // Used by the product detail breadcrumb to render every level of the
+  // hierarchy and to link the top-level segment to a valid listing route.
+  categoryPath: z.array(CategoryBreadcrumbSchema).default([]),
   inventoryStatus: InventoryStatusSchema,
   relatedProducts: z.array(ProductSchema).default([]),
 });
