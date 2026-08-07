@@ -5,6 +5,7 @@ import { getSquareCustomerId } from "@/lib/webhooks/clerk";
 import { getCart } from "@/lib/square/cart";
 import { getLoyaltyPanelData } from "@/lib/square/loyalty";
 import { customersApi } from "@/lib/square/client";
+import { isSandbox } from "@/lib/env";
 import { getGuestCartOrderId } from "@/lib/square/cookies";
 import { CheckoutSkeleton } from "@/components/checkout/checkout-skeleton";
 import { CheckoutPageClient } from "@/components/checkout/checkout-page-client";
@@ -47,6 +48,7 @@ export default async function CheckoutPage({ searchParams }: Props) {
             squareLocId={squareLocId}
             isGuest={true}
             isLoyaltyConfigured={isLoyaltyConfigured}
+            isSandbox={isSandbox}
           />
         </Suspense>
       </div>
@@ -108,6 +110,7 @@ export default async function CheckoutPage({ searchParams }: Props) {
             squareLocId={squareLocId}
             isGuest={false}
             isLoyaltyConfigured={isLoyaltyConfigured}
+            isSandbox={isSandbox}
           />
       </Suspense>
     </div>

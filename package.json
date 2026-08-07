@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:sandbox": "SQUARE_ENVIRONMENT=sandbox next dev",
+    "dev:live": "SQUARE_ENVIRONMENT=production next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

@@ -483,6 +483,7 @@ export async function processPayment(
     billingState: formData.get("billingState"),
     billingPostalCode: formData.get("billingPostalCode"),
     squareCustomerId: formData.get("squareCustomerId"),
+    billingEmail: formData.get("billingEmail") || undefined,
   });
 
   if (!parsed.success) {
@@ -497,7 +498,19 @@ export async function processPayment(
 
   const { userId } = await auth();
 
-  const { sourceId, orderId, rewardTierId, loyaltyAccountId, billingName, billingAddressLine1, billingCity, billingState, billingPostalCode, squareCustomerId } = parsed.data;
+  const { sourceId, orderId, rewardTierId, loyaltyAccountId, billingName, billingAddressLine1, billingCity, billingState, billingPostalCode, squareCustomerId, billingEmail } = parsed.data;
+
+  // Require an email address for guest checkout (no signed-in customer).
+  const isGuest = !userId;
+  if (isGuest && !billingEmail) {
+    return {
+      success: false,
+      transactionId: null,
+      orderId: null,
+      error: "An email address is required for guest checkout",
+      errorCode: "VALIDATION",
+    };
+  }
 
   try {
     const orderResp = await ordersApi.get({ orderId });
@@ -549,6 +562,7 @@ export async function processPayment(
       billingCity,
       billingState,
       billingPostalCode,
+      billingEmail,
     });
 
     if (!paymentResult.success) {

@@ -634,7 +634,11 @@ export const PaymentFormSchema = z.object({
   billingCity: z.string().min(1, "City is required"),
   billingState: z.string().length(2, "Use 2-letter state code"),
   billingPostalCode: z.string().min(5, "Valid ZIP code is required"),
-  squareCustomerId: z.string().min(1),
+  squareCustomerId: z.string().optional().or(z.literal("")),
+  billingEmail: z.string().optional().or(z.literal("")).refine(
+    (v) => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v),
+    { message: "Enter a valid email address" }
+  ),
 });
 
 export type PaymentFormInput = z.infer<typeof PaymentFormSchema>;

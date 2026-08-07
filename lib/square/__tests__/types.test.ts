@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { CheckoutInputSchema } from "@/lib/square/types";
+import { CheckoutInputSchema, PaymentFormSchema } from "@/lib/square/types";
 
 describe("CheckoutInputSchema", () => {
   it("should accept valid orderId and squareCustomerId", () => {
@@ -62,6 +62,40 @@ describe("CheckoutInputSchema", () => {
       squareCustomerId: "CUST_456",
     });
 
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("PaymentFormSchema", () => {
+  const baseForm = {
+    sourceId: "tok_123",
+    orderId: "ORDER_1",
+    billingName: "John Doe",
+    billingAddressLine1: "123 Main St",
+    billingCity: "Peoria",
+    billingState: "IL",
+    billingPostalCode: "61602",
+    squareCustomerId: "",
+  };
+
+  it("should allow guest checkout without a billingEmail", () => {
+    const result = PaymentFormSchema.safeParse(baseForm);
+    expect(result.success).toBe(true);
+  });
+
+  it("should accept a valid billingEmail for guest checkout", () => {
+    const result = PaymentFormSchema.safeParse({
+      ...baseForm,
+      billingEmail: "guest@example.com",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("should reject an invalid billingEmail", () => {
+    const result = PaymentFormSchema.safeParse({
+      ...baseForm,
+      billingEmail: "not-an-email",
+    });
     expect(result.success).toBe(false);
   });
 });

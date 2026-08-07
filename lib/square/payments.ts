@@ -24,12 +24,13 @@ export async function processCardPayment(params: {
   orderId: string;
   amountCents: number;
   currency?: string;
-  squareCustomerId: string;
+  squareCustomerId?: string;
   billingName: string;
   billingAddressLine1: string;
   billingCity: string;
   billingState: string;
   billingPostalCode: string;
+  billingEmail?: string;
 }): Promise<{ success: boolean; transactionId?: string; error?: string }> {
   const idempotencyKey = `payment-${params.orderId}`;
   const currency = params.currency ?? "USD";
@@ -44,7 +45,10 @@ export async function processCardPayment(params: {
       } as { amount: bigint; currency: "USD" },
       orderId: params.orderId,
       locationId,
-      customerId: params.squareCustomerId,
+      ...(params.squareCustomerId
+        ? { customerId: params.squareCustomerId }
+        : {}),
+      ...(params.billingEmail ? { buyerEmailAddress: params.billingEmail } : {}),
       billingAddress: {
         addressLine1: params.billingAddressLine1,
         locality: params.billingCity,

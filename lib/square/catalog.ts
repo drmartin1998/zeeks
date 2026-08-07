@@ -50,7 +50,13 @@ export const BRAND_KEY = "brand";
  */
 export async function fetchAllCategories(): Promise<SquareCatalogCategory[]> {
   const channelId = process.env.SQUARE_CHANNEL_ID;
-  if (!channelId) {
+
+  // When no channel is configured (common in the sandbox), the channel filter
+  // and hardcoded category allowlist cannot be applied. Bypass both so the full
+  // catalog is visible for local/sandbox testing. If a channel IS configured,
+  // it is respected even in sandbox.
+  const bypassFilters = !channelId;
+  if (!channelId && !bypassFilters) {
     console.warn(
       "SQUARE_CHANNEL_ID not configured; no categories will be returned"
     );
@@ -69,7 +75,9 @@ export async function fetchAllCategories(): Promise<SquareCatalogCategory[]> {
         cat.type === "CATEGORY" && !!cat.categoryData
     )
     .filter((cat) => {
-      // Channel filter: only categories assigned to the target channel
+      // Channel filter: only categories assigned to the target channel.
+      // Bypassed in sandbox (no channel to match against).
+      if (bypassFilters) return true;
       const channels = cat.categoryData.channels ?? [];
       return channels.includes(channelId);
     })
@@ -80,7 +88,8 @@ export async function fetchAllCategories(): Promise<SquareCatalogCategory[]> {
     .filter((cat) => {
       // Subcategories always pass through (filtered at consumer level via isTopLevelCategory)
       if (cat.categoryData.parentCategory?.id) return true;
-      // Top-level categories must be in the allowlist
+      // Top-level categories must be in the allowlist — bypassed in sandbox.
+      if (bypassFilters) return true;
       return ALLOWED_CATEGORY_IDS.includes(cat.id);
     });
 }
@@ -930,7 +939,9 @@ export async function getProductDetailBySlug(
   slug: string
 ): Promise<import("@/lib/square/types").ProductDetail | null> {
   const channelId = process.env.SQUARE_CHANNEL_ID;
-  if (!channelId) {
+  // No channel configured (common in sandbox) → allow product detail to load.
+  const bypassFilters = !channelId;
+  if (!channelId && !bypassFilters) {
     console.warn(
       "SQUARE_CHANNEL_ID not configured; product detail unavailable"
     );

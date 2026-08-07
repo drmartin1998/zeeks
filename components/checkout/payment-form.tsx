@@ -14,6 +14,10 @@ interface PaymentFormProps {
   loyaltyAccountId: string;
   squareAppId: string;
   squareLocId: string;
+  /** True when running against the Square sandbox (loads the sandbox SDK). */
+  isSandbox?: boolean;
+  /** True for guest checkout (no signed-in customer). Requires an email. */
+  isGuest?: boolean;
 }
 
 declare global {
@@ -58,6 +62,8 @@ export function PaymentForm({
   loyaltyAccountId,
   squareAppId,
   squareLocId,
+  isSandbox = false,
+  isGuest = false,
 }: PaymentFormProps) {
   const cardRef = useRef<{
     tokenize: () => Promise<{ status: string; token?: string; errors?: Array<{ message: string }> }>;
@@ -74,7 +80,12 @@ export function PaymentForm({
     async function initSquare() {
       if (!window.Square) {
         const script = document.createElement("script");
-        script.src = "https://web.squarecdn.com/v1/square.js";
+        // The sandbox environment requires the sandbox copy of the Web
+        // Payments SDK; the production script will fail to initialize with
+        // sandbox credentials.
+        script.src = isSandbox
+          ? "https://sandbox.web.squarecdn.com/v1/square.js"
+          : "https://web.squarecdn.com/v1/square.js";
         script.onload = async () => {
           if (!destroyed) {
             try { await setupCard(); } catch {
@@ -113,7 +124,7 @@ export function PaymentForm({
       destroyed = true;
       cardRef.current = null;
     };
-  }, [squareAppId, squareLocId]);
+  }, [squareAppId, squareLocId, isSandbox]);
 
   if (sdkError) {
     return (
@@ -145,10 +156,13 @@ export function PaymentForm({
           formData.append("squareCustomerId", squareCustomerId);
           formData.append("rewardTierId", rewardTierId);
           formData.append("loyaltyAccountId", loyaltyAccountId);
+          if (isGuest) {
+            formData.append("billingEmail", formData.get("billingEmail")?.toString() ?? "");
+          }
 
           const result = await processPayment(null, formData);
           if (result.success && result.transactionId && result.orderId) {
-            router.push(`/order/confirmation?orderId=${result.orderId}&transactionId=${result.transactionId}`);
+            router.push(`/order/confirmation?orderId=${result.orderId}`);
           } else {
             setPaymentError(result.error ?? "Payment failed");
           }
@@ -164,6 +178,22 @@ export function PaymentForm({
             className="min-h-[44px] w-full overflow-hidden rounded-lg border border-[#CDCDD8] bg-white px-4 py-3"
           />
         </div>
+
+        {isGuest && (
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-text-primary">
+              Email
+            </label>
+            <input
+              name="billingEmail"
+              type="email"
+              required
+              autoComplete="email"
+              className="w-full rounded-lg border border-[#CDCDD8] bg-white px-4 py-2.5 text-sm"
+              placeholder="you@example.com"
+            />
+          </div>
+        )}
 
         <div>
           <label className="mb-1 block text-sm font-semibold text-text-primary">

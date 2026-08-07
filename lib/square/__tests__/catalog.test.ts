@@ -224,20 +224,31 @@ describe("getSquareProductsByCategorySlug pagination", () => {
     expect(categories[0].title).toBe("Miniatures");
   });
 
-  it("should return empty array when SQUARE_CHANNEL_ID is not configured", async () => {
+  it("should bypass the channel filter and return categories when SQUARE_CHANNEL_ID is not configured", async () => {
     const originalChannelId = process.env.SQUARE_CHANNEL_ID;
     delete process.env.SQUARE_CHANNEL_ID;
 
     const { getSquareCategories } = await import("@/lib/square/catalog");
 
-    const mockSearch = vi.fn();
+    const mockSearch = vi.fn().mockResolvedValue({
+      objects: [
+        {
+          id: MINIATURES_ID,
+          type: "CATEGORY" as const,
+          categoryData: { name: "Miniatures" },
+        },
+      ],
+    });
     vi.mocked(
       (await import("@/lib/square/client")).catalogApi.search
     ).mockImplementation(mockSearch);
 
     const categories = await getSquareCategories();
-    expect(categories).toEqual([]);
-    expect(mockSearch).not.toHaveBeenCalled();
+    // No channel → the filter is bypassed so the full catalog is visible
+    // (supports sandbox testing where no channel is configured).
+    expect(categories).toHaveLength(1);
+    expect(categories[0].title).toBe("Miniatures");
+    expect(mockSearch).toHaveBeenCalled();
 
     process.env.SQUARE_CHANNEL_ID = originalChannelId;
   });

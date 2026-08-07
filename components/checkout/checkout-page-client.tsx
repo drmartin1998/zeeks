@@ -16,9 +16,11 @@ interface CheckoutPageClientProps {
   squareLocId: string;
   isGuest?: boolean;
   isLoyaltyConfigured?: boolean;
+  /** True when running against the Square sandbox. */
+  isSandbox?: boolean;
 }
 
-export function CheckoutPageClient({ data, selectedRewardTier, squareAppId, squareLocId, isGuest = false, isLoyaltyConfigured = false }: CheckoutPageClientProps) {
+export function CheckoutPageClient({ data, selectedRewardTier, squareAppId, squareLocId, isGuest = false, isLoyaltyConfigured = false, isSandbox = false }: CheckoutPageClientProps) {
   const { order, loyaltyData, profile } = data;
 
   if (!order || order.lineItems.length === 0) {
@@ -95,6 +97,8 @@ export function CheckoutPageClient({ data, selectedRewardTier, squareAppId, squa
           loyaltyAccountId={account?.id ?? ""}
           squareAppId={squareAppId}
           squareLocId={squareLocId}
+          isSandbox={isSandbox}
+          isGuest={isGuest}
         />
       </div>
     </div>
