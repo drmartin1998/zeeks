@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 const originalProjectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
 const originalDataset = process.env.NEXT_PUBLIC_SANITY_DATASET;
 
-type ImageUrlFn = (image: unknown) => string | null;
+type ImageUrlFn = (image: Parameters<typeof import("@/lib/sanity/image").imageUrl>[0]) => string | null;
 
 describe("imageUrl helper", () => {
   let imageUrl: ImageUrlFn;

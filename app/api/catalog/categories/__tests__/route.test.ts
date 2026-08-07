@@ -41,14 +41,10 @@ describe("GET /api/catalog/categories", () => {
 
     expect(response.status).toBe(200);
     expect(Array.isArray(data)).toBe(true);
-    expect(data).toHaveLength(2);
+    expect(data).toHaveLength(1);
     expect(data[0]).toEqual({
       label: "Miniatures",
       href: "/categories/miniatures",
-    });
-    expect(data[1]).toEqual({
-      label: "Hobby Supplies",
-      href: "/categories/hobby-supplies",
     });
 
     // Verify cache headers
@@ -118,11 +114,10 @@ describe("GET /api/catalog/categories", () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    // Only top-level categories (no parentCategory.id) should be returned
-    expect(data).toHaveLength(2);
+    // Only allowlisted top-level categories (no parentCategory.id) should be returned
+    expect(data).toHaveLength(1);
     expect(data.map((c: { label: string }) => c.label)).toEqual([
       "Miniatures",
-      "Hobby Supplies",
     ]);
   });
 
@@ -151,10 +146,9 @@ describe("GET /api/catalog/categories", () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data).toHaveLength(2);
+    expect(data).toHaveLength(1);
     expect(data.map((c: { label: string }) => c.label)).toEqual([
       "Miniatures",
-      "Hobby Supplies",
     ]);
   });
 });

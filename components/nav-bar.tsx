@@ -110,6 +110,12 @@ export function NavBar({ categories, cartItemCount, locationData }: NavBarProps)
       {/* Category row - scrollable below lg */}
       <div className="border-t border-border-default bg-white">
         <div className="mx-auto flex h-[56px] max-w-[1440px] items-center gap-4 overflow-x-auto whitespace-nowrap px-4 lg:gap-8 lg:px-20 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <Link
+            href="/"
+            className="shrink-0 text-sm font-medium text-text-muted transition-colors hover:text-text-primary"
+          >
+            Home
+          </Link>
           {navItems.map((cat) => (
             <Link
               key={cat.label}

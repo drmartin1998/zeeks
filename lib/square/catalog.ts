@@ -86,12 +86,11 @@ export async function fetchAllCategories(): Promise<SquareCatalogCategory[]> {
 
 /**
  * Square category IDs that are allowed as top-level categories.
- * Only Miniatures and Hobby Supplies are currently allowlisted.
+ * Only Miniatures is currently allowlisted.
  * All other top-level Square categories are filtered out.
  */
 const ALLOWED_CATEGORY_IDS: string[] = [
   "ZCZJWQX6WREDLATZFW3U7OCJ", // Miniatures
-  "62G7JSXJDS4U574NW4XS4WKV", // Hobby Supplies
 ];
 
 // ---------------------------------------------------------------------------
