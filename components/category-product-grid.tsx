@@ -109,7 +109,10 @@ export function CategoryProductGrid({ products, subCategories }: Props) {
         </div>
       ) : filteredProducts.length > 0 ? (
         <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
+          <div
+            className="grid justify-center gap-6"
+            style={{ gridTemplateColumns: "repeat(auto-fill, 280px)" }}
+          >
             {paginatedProducts.map((product) => (
               <GameCard
                 key={product.catalogObjectId ?? product.title}

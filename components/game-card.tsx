@@ -33,8 +33,8 @@ export function GameCard({
   hasVariations = false,
 }: GameCardProps) {
   return (
-    <div className="group flex w-full sm:max-w-[302px] flex-col overflow-hidden rounded-2xl bg-surface-primary shadow-[0_10px_28px_rgba(93,95,239,0.08)]">
-      {/* Image area */}
+    <div className="group flex w-[280px] flex-col overflow-hidden rounded-[12px] bg-white shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
+      {/* Image area — locked 4:3 (280×210), object-fit cover */}
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-neutral-200">
         {image ? (
           <img
@@ -51,55 +51,67 @@ export function GameCard({
         )}
       </div>
 
-      {/* Product info */}
-      <div className="flex flex-col gap-4 p-5">
-        {/* Category + title + price — as in Figma text-meta group */}
-        <div className="flex flex-col gap-1">
-          {/* Category badge — now a clickable link */}
-          {categorySlug ? (
-            <NextLink
-              href={`/categories/${categorySlug}`}
-              className="text-xs font-semibold uppercase tracking-wide text-status-sale transition-colors hover:text-status-sale/70"
-            >
-              {category}
-            </NextLink>
-          ) : (
-            <span className="text-xs font-semibold uppercase tracking-wide text-status-sale">
-              {category}
-            </span>
-          )}
-          {/* Title as clickable link */}
-          <Link href={productSlug ? `/products/${productSlug}` : "#"} className="text-lg">
-            {title}
-          </Link>
-          {/* Price */}
-          <span className="font-heading text-[22px] font-bold text-text-price">
-            {hasVariations && minPrice != null && maxPrice != null
-              ? `$${minPrice.toFixed(2)} – $${maxPrice.toFixed(2)}`
-              : `$${price.toFixed(2)}`}
-          </span>
-        </div>
-
-        {/* Add to Cart button */}
-        {hasVariations ? (
-          <NextLink href={productSlug ? `/products/${productSlug}` : "#"}>
-            <Button variant="secondary" size="lg" className="w-full">
-              Choose Options
-            </Button>
+      {/* Content */}
+      <div className="flex flex-col gap-1 px-4 pb-4 pt-3">
+        {/* Category tag — 11px, uppercase, brand orange #E8950E */}
+        {categorySlug ? (
+          <NextLink
+            href={`/categories/${categorySlug}`}
+            className="text-[11px] font-bold uppercase tracking-[0.5px] text-[#E8950E] transition-colors hover:text-[#C47F10]"
+          >
+            {category}
           </NextLink>
-        ) : catalogObjectId ? (
-          <AddToCartForm
-            catalogObjectId={variationId || catalogObjectId}
-            variationId=""
-            quantity={1}
-            className="w-full"
-            size="lg"
-          />
         ) : (
-          <Button variant="primary" size="lg" className="w-full">
-            Add to Cart
-          </Button>
+          <span className="text-[11px] font-bold uppercase tracking-[0.5px] text-[#E8950E]">
+            {category}
+          </span>
         )}
+
+        {/* Title — 16px, 600, dark navy #1A1A2E */}
+        <Link
+          href={productSlug ? `/products/${productSlug}` : "#"}
+          className="text-base font-semibold leading-snug text-[#1A1A2E]"
+        >
+          {title}
+        </Link>
+
+        {/* Price — 18px, bold, dark navy #1A1A2E */}
+        <span className="text-[18px] font-bold text-[#1A1A2E]">
+          {hasVariations && minPrice != null && maxPrice != null
+            ? `$${minPrice.toFixed(2)} – $${maxPrice.toFixed(2)}`
+            : `$${price.toFixed(2)}`}
+        </span>
+
+        {/* CTA — full width, orange bg #E8950E, white text */}
+        <div className="mt-2">
+          {hasVariations ? (
+            <NextLink href={productSlug ? `/products/${productSlug}` : "#"}>
+              <Button
+                variant="default"
+                size="lg"
+                className="w-full !bg-[#E8950E] hover:!bg-[#C47F10]"
+              >
+                Choose Options
+              </Button>
+            </NextLink>
+          ) : catalogObjectId ? (
+            <AddToCartForm
+              catalogObjectId={variationId || catalogObjectId}
+              variationId=""
+              quantity={1}
+              className="w-full !bg-[#E8950E] hover:!bg-[#C47F10]"
+              size="lg"
+            />
+          ) : (
+            <Button
+              variant="default"
+              size="lg"
+              className="w-full !bg-[#E8950E] hover:!bg-[#C47F10]"
+            >
+              Add to Cart
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );

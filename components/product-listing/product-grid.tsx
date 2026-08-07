@@ -29,7 +29,12 @@ export function ProductGrid({ products, fill = false }: ProductGridProps) {
           : "mx-auto w-full max-w-[1440px] px-4 pt-12 pb-6 md:px-8 lg:px-20"
       }
     >
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div
+        className="grid justify-center gap-6"
+        style={{
+          gridTemplateColumns: "repeat(auto-fill, 280px)",
+        }}
+      >
         {products.map((product) => (
           <GameCard
             key={product.catalogObjectId ?? product.slug}

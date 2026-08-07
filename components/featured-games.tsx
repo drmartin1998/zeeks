@@ -43,7 +43,10 @@ export function FeaturedGames({ games }: FeaturedGamesProps) {
 
         {/* Games grid */}
         {games.length > 0 && (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
+          <div
+            className="grid justify-center gap-6"
+            style={{ gridTemplateColumns: "repeat(auto-fill, 280px)" }}
+          >
             {games.map((game) => (
               <GameCard
                 key={game.catalogObjectId ?? game.title}
