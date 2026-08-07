@@ -6,8 +6,9 @@ import type { SquareProduct, SquareSubCategory } from "@/lib/square/catalog";
 
 // Mock next/navigation
 const mockPush = vi.fn();
+const mutableParams = new URLSearchParams();
 vi.mock("next/navigation", () => ({
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => mutableParams,
   useRouter: () => ({ push: mockPush }),
 }));
 
@@ -45,6 +46,7 @@ function createProducts(count: number, subSlug?: string): SquareProduct[] {
 describe("CategoryProductGrid", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mutableParams.delete("sub");
   });
 
   // T013: Pagination
@@ -137,5 +139,37 @@ describe("CategoryProductGrid", () => {
       screen.getByText("No products in this subcategory")
     ).toBeInTheDocument();
     expect(screen.getByText("Show all")).toBeInTheDocument();
+  });
+
+  // Bug fix: navigating to a different ?sub= via the Shop megamenu (a query-only
+  // change on the same path) must update the filtered state, not just the URL.
+  it("should update the active filter when the URL sub param changes", async () => {
+    const products = [
+      ...createProducts(3, "strategy"),
+      ...createProducts(2, "family"),
+    ];
+
+    const { rerender } = render(
+      <CategoryProductGrid
+        products={products}
+        subCategories={mockSubCategories}
+      />
+    );
+
+    // Initially all 5 products shown
+    expect(screen.getAllByText(/Product \d+/)).toHaveLength(5);
+
+    // Simulate navigation to ?sub=strategy (as the megamenu Link would do),
+    // then re-render so the effect re-reads the updated search params.
+    mutableParams.set("sub", "strategy");
+    rerender(
+      <CategoryProductGrid
+        products={products}
+        subCategories={mockSubCategories}
+      />
+    );
+
+    // Only Strategy products shown after the URL change.
+    expect(screen.getAllByText(/Product \d+/)).toHaveLength(3);
   });
 });

@@ -29,6 +29,21 @@ export function CategoryProductGrid({ products, subCategories }: Props) {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Keep the active subcategory in sync with the URL. Navigating to a different
+  // `?sub=` (e.g. via the Shop megamenu) is a query-only change on the same
+  // path, so Next.js does not remount this component. Adjusting state during
+  // render from the previous URL value is the React-recommended pattern for
+  // reacting to prop/URL changes without a setState-in-effect.
+  const urlSub = searchParams.get("sub");
+  const [prevUrlSub, setPrevUrlSub] = useState(urlSub);
+  if (urlSub !== prevUrlSub) {
+    setPrevUrlSub(urlSub);
+    const nextSub =
+      urlSub && subCategories.some((s) => s.slug === urlSub) ? urlSub : null;
+    setActiveSub(nextSub);
+    setCurrentPage(1);
+  }
+
   // Apply subcategory filter
   const filteredProducts = useMemo(() => {
     if (!activeSub) return products;

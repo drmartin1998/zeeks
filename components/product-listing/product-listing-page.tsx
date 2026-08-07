@@ -197,6 +197,21 @@ export function ProductListingPage({
   const [currentSort, setCurrentSort] = useState("Featured");
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Keep filter state in sync with the URL. When the visitor navigates to a
+  // different subcategory via the Shop megamenu (a query-only change on the
+  // same path), Next.js updates `searchParams` without remounting this
+  // component, so the `useState` initializers above would otherwise keep the
+  // stale filter. Adjusting state during render from the previous URL value is
+  // the React-recommended pattern for this (avoids setState-in-effect).
+  const urlSub = searchParams.get("sub");
+  const [prevUrlSub, setPrevUrlSub] = useState(urlSub);
+  if (urlSub !== prevUrlSub) {
+    setPrevUrlSub(urlSub);
+    const nextSub = urlSub && allSubSlugs.includes(urlSub) ? [urlSub] : [];
+    setActiveSubs(nextSub);
+    setCurrentPage(1);
+  }
+
   // Products matching the OTHER active facet groups — used to derive the
   // available (non-disabled) options for each facet (dynamic narrowing).
   const subFiltered = useMemo(
