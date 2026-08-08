@@ -18,6 +18,12 @@ const envSchema = z.object({
     .default(
       process.env.NODE_ENV === "production" ? "production" : "sandbox"
     ),
+  /** Resend API key for transactional email (order confirmations). */
+  RESEND_API_KEY: z.string().optional(),
+  /** Square webhook notification URL (must match the registered URL). */
+  SQUARE_WEBHOOK_URL: z.string().optional(),
+  /** Square webhook signature key for event verification. */
+  SQUARE_WEBHOOK_SIGNATURE_KEY: z.string().optional(),
 });
 
 const envSchemaResult = envSchema.safeParse({
@@ -33,6 +39,9 @@ const envSchemaResult = envSchema.safeParse({
     process.env.SQUARE_LOYALTY_PROGRAM_ID,
   SQUARE_ENVIRONMENT:
     process.env.SQUARE_ENVIRONMENT || process.env.square_environment,
+  RESEND_API_KEY: process.env.RESEND_API_KEY,
+  SQUARE_WEBHOOK_URL: process.env.SQUARE_WEBHOOK_URL,
+  SQUARE_WEBHOOK_SIGNATURE_KEY: process.env.SQUARE_WEBHOOK_SIGNATURE_KEY,
 });
 
 function validateEnv() {

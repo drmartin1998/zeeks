@@ -669,3 +669,51 @@ export interface DeselectRewardResult {
   error?: string;
 }
 
+// ---------------------------------------------------------------------------
+// Order Confirmation Email (feature 037)
+// ---------------------------------------------------------------------------
+
+/** A single item in the order confirmation email. */
+export interface EmailLineItem {
+  name: string;
+  quantity: number;
+  /** Unit price in currency minor units (cents). */
+  unitPrice: number;
+  /** Line total in currency minor units (cents). */
+  lineTotal: number;
+}
+
+/** The order confirmation email sent to a customer. */
+export interface OrderConfirmationEmail {
+  to: { email: string; name?: string };
+  sender: { email: string; name: string };
+  subject: string;
+  htmlContent: string;
+  textContent: string;
+  orderId: string;
+  lineItems: EmailLineItem[];
+  subtotal: { amount: number; currency: string };
+}
+
+/** A Square webhook event notification (generalized). */
+export interface SquareWebhookEvent<T = unknown> {
+  type: string;
+  event_id?: string;
+  data: {
+    type: string;
+    id: string;
+    object?: T;
+  };
+}
+
+/** The `payment.updated` event payload object. */
+export interface PaymentCompletedEventObject {
+  payment?: {
+    id?: string;
+    order_id?: string;
+    status?: string;
+    /** The buyer's email address (most reliable recipient for the email). */
+    buyerEmailAddress?: string;
+  };
+}
+
