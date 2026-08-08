@@ -52,6 +52,7 @@ export async function fetchAllCategories(): Promise<SquareCatalogCategory[]> {
     objectTypes: ["CATEGORY"],
     includeDeletedObjects: false,
   });
+
   const objects =
     (response as { objects?: SquareCatalogCategory[] }).objects ?? [];
   return objects
@@ -60,7 +61,7 @@ export async function fetchAllCategories(): Promise<SquareCatalogCategory[]> {
         cat.type === "CATEGORY" &&
         !!cat.categoryData &&
         // Exclude categories not visible online.
-        cat.categoryData.onlineVisibility !== false
+        (cat.categoryData.channels?.includes(process.env.SQUARE_CHANNEL_ID || "") ?? false)
     )
     .filter((cat) => {
       // In production, only allow the configured top-level categories
