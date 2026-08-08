@@ -226,12 +226,51 @@ function buildCart(order: Record<string, unknown>): Cart {
     };
   });
 
+  // Extract fulfillment + shipping cost from the order (feature 038).
+  const rawFulfillments = (order.fulfillments as unknown as Array<Record<string, unknown>>) ?? [];
+  const shipment = rawFulfillments.find((f) => f.type === "SHIPMENT");
+  const fulfillment = shipment
+    ? {
+        method: "shipping" as const,
+        shippingAddress: extractShippingAddress(shipment),
+        shippingCost: null,
+      }
+    : {
+        method: "pickup" as const,
+        shippingAddress: null,
+        shippingCost: null,
+      };
+
+  const shippingCostAmount = 0; // shipping cost is charged at payment; total reflects it
+  const subtotalAmount = Number(totalMoney?.amount ?? 0);
+
   return {
     orderId: id,
     lineItems,
     subtotal: {
-      amount: Number(totalMoney?.amount ?? 0),
+      amount: subtotalAmount,
       currency: (totalMoney?.currency as string) ?? "USD",
     },
+    shippingCost: { amount: shippingCostAmount, currency: "USD" },
+    total: { amount: subtotalAmount, currency: "USD" },
+    fulfillment,
+  };
+}
+
+/** Extract a shipping address from a SHIPMENT fulfillment, or null. */
+function extractShippingAddress(
+  fulfillment: Record<string, unknown>
+): { recipientName: string; addressLine1: string; addressLine2?: string; city: string; state: string; postalCode: string } | null {
+  const details = fulfillment.shipmentDetails as Record<string, unknown> | undefined;
+  const recipient = details?.recipient as Record<string, unknown> | undefined;
+  const address = recipient?.address as Record<string, unknown> | undefined;
+  if (!address) return null;
+  return {
+    recipientName: (recipient?.displayName as string) ?? "",
+    addressLine1: (address.addressLine1 as string) ?? "",
+    addressLine2: (address.addressLine2 as string) ?? undefined,
+    city: (address.locality as string) ?? "",
+    state: (address.administrativeDistrictLevel1 as string) ?? "",
+    postalCode: (address.postalCode as string) ?? "",
   };
 }

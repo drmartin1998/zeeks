@@ -60,6 +60,36 @@ export default async function OrderConfirmationPage({ searchParams }: Props) {
             </span>
           </div>
 
+          {/* Fulfillment method (feature 038) */}
+          {order?.fulfillment && (
+            <div className="mt-6 border-t border-[#CDCDD8] pt-4">
+              <h2 className="font-heading text-lg font-black text-text-primary">
+                Delivery
+              </h2>
+              {order.fulfillment.method === "shipping" &&
+              order.fulfillment.shippingAddress ? (
+                <div className="mt-2 text-sm text-text-muted">
+                  <p className="font-medium text-text-primary">Shipping</p>
+                  <p>{order.fulfillment.shippingAddress.recipientName}</p>
+                  <p>{order.fulfillment.shippingAddress.addressLine1}</p>
+                  {order.fulfillment.shippingAddress.addressLine2 && (
+                    <p>{order.fulfillment.shippingAddress.addressLine2}</p>
+                  )}
+                  <p>
+                    {order.fulfillment.shippingAddress.city},{" "}
+                    {order.fulfillment.shippingAddress.state}{" "}
+                    {order.fulfillment.shippingAddress.postalCode}
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-2 text-sm text-text-muted">
+                  <p className="font-medium text-text-primary">Pickup</p>
+                  <p>Order is ready for pickup at our store.</p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Items sold */}
           {order && order.lineItems.length > 0 ? (
             <div className="mt-6">

@@ -18,6 +18,19 @@ interface PaymentFormProps {
   isSandbox?: boolean;
   /** True for guest checkout (no signed-in customer). Requires an email. */
   isGuest?: boolean;
+  /** Chosen fulfillment method. */
+  fulfillmentMethod?: "shipping" | "pickup";
+  /** Shipping address (for shipping fulfillment). */
+  shippingAddress?: {
+    recipientName: string;
+    addressLine1: string;
+    addressLine2?: string;
+    city: string;
+    state: string;
+    postalCode: string;
+  } | null;
+  /** Shipping cost in cents (0 for pickup). */
+  shippingCostCents?: number;
 }
 
 declare global {
@@ -64,6 +77,9 @@ export function PaymentForm({
   squareLocId,
   isSandbox = false,
   isGuest = false,
+  fulfillmentMethod = "pickup",
+  shippingAddress = null,
+  shippingCostCents = 0,
 }: PaymentFormProps) {
   const cardRef = useRef<{
     tokenize: () => Promise<{ status: string; token?: string; errors?: Array<{ message: string }> }>;
@@ -156,6 +172,16 @@ export function PaymentForm({
           formData.append("squareCustomerId", squareCustomerId);
           formData.append("rewardTierId", rewardTierId);
           formData.append("loyaltyAccountId", loyaltyAccountId);
+          formData.append("fulfillmentMethod", fulfillmentMethod);
+          formData.append("shippingCostCents", String(shippingCostCents));
+          if (shippingAddress) {
+            formData.append("shippingName", shippingAddress.recipientName);
+            formData.append("shippingLine1", shippingAddress.addressLine1);
+            formData.append("shippingLine2", shippingAddress.addressLine2 ?? "");
+            formData.append("shippingCity", shippingAddress.city);
+            formData.append("shippingState", shippingAddress.state);
+            formData.append("shippingPostalCode", shippingAddress.postalCode);
+          }
           if (isGuest) {
             formData.append("billingEmail", formData.get("billingEmail")?.toString() ?? "");
           }

@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { CheckoutInputSchema, PaymentFormSchema } from "@/lib/square/types";
+import {
+  CheckoutInputSchema,
+  PaymentFormSchema,
+  ShippingAddressSchema,
+} from "@/lib/square/types";
 
 describe("CheckoutInputSchema", () => {
   it("should accept valid orderId and squareCustomerId", () => {
@@ -97,5 +101,39 @@ describe("PaymentFormSchema", () => {
       billingEmail: "not-an-email",
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("ShippingAddressSchema", () => {
+  const validAddress = {
+    recipientName: "John Doe",
+    addressLine1: "123 Main St",
+    city: "Peoria",
+    state: "IL",
+    postalCode: "61602",
+  };
+
+  it("should accept a valid shipping address", () => {
+    expect(ShippingAddressSchema.safeParse(validAddress).success).toBe(true);
+  });
+
+  it("should reject a missing recipient name", () => {
+    expect(
+      ShippingAddressSchema.safeParse({ ...validAddress, recipientName: "" })
+        .success
+    ).toBe(false);
+  });
+
+  it("should reject an invalid state code", () => {
+    expect(
+      ShippingAddressSchema.safeParse({ ...validAddress, state: "ILL" }).success
+    ).toBe(false);
+  });
+
+  it("should reject an invalid postal code", () => {
+    expect(
+      ShippingAddressSchema.safeParse({ ...validAddress, postalCode: "12" })
+        .success
+    ).toBe(false);
   });
 });
