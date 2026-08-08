@@ -627,6 +627,20 @@ export async function processPayment(
 
     revalidatePath("/cart");
 
+    // The order is now paid (OPEN). For guests, clear the lingering cart
+    // cookie so the cart no longer shows the purchased items and a fresh
+    // draft order can be created on the next add-to-cart.
+    if (isGuest) {
+      try {
+        await clearGuestCartOrderId();
+      } catch (error) {
+        console.error(
+          "processPayment: failed to clear guest cart cookie:",
+          error instanceof Error ? error.message : error
+        );
+      }
+    }
+
     return { success: true, transactionId: paymentResult.transactionId ?? null, orderId, error: null, errorCode: null };
   } catch (error) {
     return { success: false, transactionId: null, orderId: null, error: error instanceof Error ? error.message : "Checkout failed", errorCode: "CHECKOUT_FAILED" };

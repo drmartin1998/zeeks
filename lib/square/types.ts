@@ -705,15 +705,51 @@ export interface DeselectRewardResult {
   error?: string;
 }
 
+// ---------------------------------------------------------------------------
+// Order Confirmation Email (feature 037)
+// ---------------------------------------------------------------------------
 
-/** Zod schema validating a shipping address (FR-005). */
-export const ShippingAddressSchema = z.object({
-  recipientName: z.string().min(1, "Recipient name is required"),
-  addressLine1: z.string().min(1, "Street address is required"),
-  addressLine2: z.string().optional(),
-  city: z.string().min(1, "City is required"),
-  state: z.string().length(2, "Use a 2-letter state code"),
-  postalCode: z.string().min(5, "Enter a valid ZIP code"),
-});
+/** A single item in the order confirmation email. */
+export interface EmailLineItem {
+  name: string;
+  quantity: number;
+  /** Unit price in currency minor units (cents). */
+  unitPrice: number;
+  /** Line total in currency minor units (cents). */
+  lineTotal: number;
+}
 
-export type ShippingAddressInput = z.infer<typeof ShippingAddressSchema>;
+/** The order confirmation email sent to a customer. */
+export interface OrderConfirmationEmail {
+  to: { email: string; name?: string };
+  sender: { email: string; name: string };
+  subject: string;
+  htmlContent: string;
+  textContent: string;
+  orderId: string;
+  lineItems: EmailLineItem[];
+  subtotal: { amount: number; currency: string };
+}
+
+/** A Square webhook event notification (generalized). */
+export interface SquareWebhookEvent<T = unknown> {
+  type: string;
+  event_id?: string;
+  data: {
+    type: string;
+    id: string;
+    object?: T;
+  };
+}
+
+/** The `payment.updated` event payload object. */
+export interface PaymentCompletedEventObject {
+  payment?: {
+    id?: string;
+    order_id?: string;
+    status?: string;
+    /** The buyer's email address (most reliable recipient for the email). */
+    buyerEmailAddress?: string;
+  };
+}
+
