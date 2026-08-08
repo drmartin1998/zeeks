@@ -41,6 +41,8 @@ interface FilterBarProps {
   onClearAll: () => void;
   /** The product results column (grid + pagination) rendered beside/under the facets. */
   children?: ReactNode;
+  /** Disable facet interactions while filters are applying. */
+  disabled?: boolean;
 }
 
 const SORT_OPTIONS = ["Featured", "Price: Low to High", "Price: High to Low", "Newest", "Best Selling"];
@@ -66,6 +68,7 @@ export function FilterBar({
   onToggleAvailability,
   onClearAll,
   children,
+  disabled = false,
 }: FilterBarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -80,6 +83,7 @@ export function FilterBar({
       expandedSlugs={expandedSubs}
       countBySlug={subCounts ?? {}}
       onToggle={onToggleSub}
+      disabled={disabled}
     />
   ) : (
     <FacetGroup
@@ -88,6 +92,7 @@ export function FilterBar({
       options={subOptions}
       selectedValues={activeSubs}
       onToggle={onToggleSub}
+      disabled={disabled}
     />
   );
 
@@ -103,6 +108,7 @@ export function FilterBar({
           options={brandOptions}
           selectedValues={activeBrands}
           onToggle={onToggleBrand}
+          disabled={disabled}
         />
       </div>
       <div className="px-4 py-5">
@@ -111,6 +117,7 @@ export function FilterBar({
           options={availabilityOptions}
           selectedValues={activeAvailability}
           onToggle={(v) => onToggleAvailability(v as Availability)}
+          disabled={disabled}
         />
       </div>
       {hasActive && (
@@ -118,7 +125,8 @@ export function FilterBar({
           <button
             type="button"
             onClick={onClearAll}
-            className="self-start text-[13px] font-semibold text-zeeks-purple underline-offset-2 hover:underline"
+            disabled={disabled}
+            className="self-start text-[13px] font-semibold text-zeeks-purple underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-60"
           >
             Clear all ({activeCount})
           </button>
@@ -142,6 +150,7 @@ export function FilterBar({
         options={chipOptions}
         selectedValues={activeSubs}
         onToggle={onToggleSub}
+        disabled={disabled}
       />
       <div className="grid grid-cols-2 gap-6">
         <FacetGroup
@@ -149,12 +158,14 @@ export function FilterBar({
           options={brandOptions}
           selectedValues={activeBrands}
           onToggle={onToggleBrand}
+          disabled={disabled}
         />
         <FacetGroup
           title="Availability"
           options={availabilityOptions}
           selectedValues={activeAvailability}
           onToggle={(v) => onToggleAvailability(v as Availability)}
+          disabled={disabled}
         />
       </div>
     </div>
@@ -171,9 +182,11 @@ export function FilterBar({
           <div className="relative">
             <select
               value={currentSort}
+              disabled={disabled}
               onChange={(e) => onSortChange(e.target.value)}
               className={cn(
-                "inline-flex h-[35px] cursor-pointer appearance-none items-center gap-3 rounded-md border-0 bg-white pl-4 pr-10 text-[13px] font-semibold text-text-primary transition-colors hover:bg-surface-secondary focus:outline-none"
+                "inline-flex h-[35px] cursor-pointer appearance-none items-center gap-3 rounded-md border-0 bg-white pl-4 pr-10 text-[13px] font-semibold text-text-primary transition-colors hover:bg-surface-secondary focus:outline-none",
+                disabled && "cursor-not-allowed opacity-60"
               )}
             >
               {SORT_OPTIONS.map((option) => (

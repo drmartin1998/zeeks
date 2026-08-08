@@ -1,13 +1,20 @@
 "use client";
 
+import { useState } from "react";
 import NextLink from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { OrderSummary } from "@/components/checkout/order-summary";
 import { CustomerInfo } from "@/components/checkout/customer-info";
 import { PaymentForm } from "@/components/checkout/payment-form";
+import { FulfillmentSection } from "@/components/checkout/fulfillment-section";
 import { GuestLoyaltyNotification } from "@/components/checkout/guest-loyalty-notification";
 import { bankersRound } from "@/lib/utils";
-import type { CheckoutData, RewardTier } from "@/lib/square/types";
+import type {
+  CheckoutData,
+  FulfillmentMethod,
+  RewardTier,
+  ShippingAddress,
+} from "@/lib/square/types";
 
 interface CheckoutPageClientProps {
   data: CheckoutData;
@@ -22,6 +29,11 @@ interface CheckoutPageClientProps {
 
 export function CheckoutPageClient({ data, selectedRewardTier, squareAppId, squareLocId, isGuest = false, isLoyaltyConfigured = false, isSandbox = false }: CheckoutPageClientProps) {
   const { order, loyaltyData, profile } = data;
+  const [fulfillment, setFulfillment] = useState<{
+    method: FulfillmentMethod;
+    shippingAddress: ShippingAddress | null;
+    shippingCostCents: number;
+  }>({ method: "pickup", shippingAddress: null, shippingCostCents: 0 });
 
   if (!order || order.lineItems.length === 0) {
     return (
@@ -47,9 +59,11 @@ export function CheckoutPageClient({ data, selectedRewardTier, squareAppId, squa
     }
   }
 
-  const totalAmount = rewardDiscountAmount !== null
+  const subtotalAfterReward = rewardDiscountAmount !== null
     ? order.subtotal.amount - rewardDiscountAmount
     : order.subtotal.amount;
+
+  const totalAmount = subtotalAfterReward + fulfillment.shippingCostCents;
 
   return (
     <div className="mx-auto flex max-w-[1440px] flex-col gap-16 px-5 pt-16 pb-[100px] sm:px-10 lg:flex-row lg:px-20">
@@ -77,6 +91,7 @@ export function CheckoutPageClient({ data, selectedRewardTier, squareAppId, squa
             subtotal={order.subtotal}
             rewardLabel={rewardDiscountLabel}
             rewardDiscountAmount={rewardDiscountAmount}
+            shippingCost={fulfillment.shippingCostCents}
             total={{ amount: totalAmount, currency: "USD" }}
           />
 
@@ -90,6 +105,10 @@ export function CheckoutPageClient({ data, selectedRewardTier, squareAppId, squa
       </div>
 
       <div className="flex flex-col gap-4 lg:w-[416px]">
+        <FulfillmentSection
+          subtotalCents={order.subtotal.amount}
+          onFulfillmentChange={setFulfillment}
+        />
         <PaymentForm
           orderId={order.orderId}
           squareCustomerId={profile?.id ?? ""}
@@ -99,6 +118,9 @@ export function CheckoutPageClient({ data, selectedRewardTier, squareAppId, squa
           squareLocId={squareLocId}
           isSandbox={isSandbox}
           isGuest={isGuest}
+          fulfillmentMethod={fulfillment.method}
+          shippingAddress={fulfillment.shippingAddress}
+          shippingCostCents={fulfillment.shippingCostCents}
         />
       </div>
     </div>

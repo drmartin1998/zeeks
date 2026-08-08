@@ -1,4 +1,5 @@
 import { catalogApi, locationId } from "@/lib/square/client";
+import { isSandbox } from "@/lib/env";
 import {
   type NavCategoryNode,
   type SquareCatalogCategory,
@@ -40,67 +41,36 @@ export const BRAND_KEY = "brand";
 /**
  * Fetch ALL Square catalog categories (top-level + subcategories) in one call.
  *
- * Filters applied centrally (all consumers inherit automatically):
- * 1. Channel filter — only categories in SQUARE_CHANNEL_ID
- * 2. Allowlist filter — subcategories pass through; top-level must be in ALLOWED_CATEGORY_IDS
- *
- * Centralization: getNavCategories(), getSquareCategoryBySlug(),
- * getSquareSubcategories(), and getSquareProductsByCategorySlug() all
- * call this function and receive channel-filtered data automatically.
+ * In production, only top-level categories in `PRODUCTION_ALLOWED_CATEGORY_IDS`
+ * are returned (their subcategories pass through). In sandbox, every valid
+ * category is returned so the full catalog is visible for testing.
+ * Consumers filter by top-level (via `isTopLevelCategory`) or build nested
+ * trees as needed (e.g. `buildNavCategoryTree` for the Shop menu).
  */
 export async function fetchAllCategories(): Promise<SquareCatalogCategory[]> {
-  const channelId = process.env.SQUARE_CHANNEL_ID;
-
-  // When no channel is configured (common in the sandbox), the channel filter
-  // and hardcoded category allowlist cannot be applied. Bypass both so the full
-  // catalog is visible for local/sandbox testing. If a channel IS configured,
-  // it is respected even in sandbox.
-  const bypassFilters = !channelId;
-  if (!channelId && !bypassFilters) {
-    console.warn(
-      "SQUARE_CHANNEL_ID not configured; no categories will be returned"
-    );
-    return [];
-  }
-
   const response = await catalogApi.search({
     objectTypes: ["CATEGORY"],
     includeDeletedObjects: false,
   });
+
   const objects =
     (response as { objects?: SquareCatalogCategory[] }).objects ?? [];
   return objects
     .filter(
       (cat: SquareCatalogCategory): cat is SquareCatalogCategory =>
-        cat.type === "CATEGORY" && !!cat.categoryData
-    )
-    .filter((cat) => {
-      // Channel filter: only categories assigned to the target channel.
-      // Bypassed in sandbox (no channel to match against).
-      if (bypassFilters) return true;
-      const channels = cat.categoryData.channels ?? [];
-      return channels.includes(channelId);
-    })
-    .filter((cat) => {
-      // Online visibility filter: exclude categories not visible online
-      return cat.categoryData.onlineVisibility !== false;
-    })
-    .filter((cat) => {
-      // Subcategories always pass through (filtered at consumer level via isTopLevelCategory)
-      if (cat.categoryData.parentCategory?.id) return true;
-      // Top-level categories must be in the allowlist — bypassed in sandbox.
-      if (bypassFilters) return true;
-      return ALLOWED_CATEGORY_IDS.includes(cat.id);
-    });
+        cat.type === "CATEGORY" &&
+        !!cat.categoryData &&
+        // Exclude categories not visible online.
+        (cat.categoryData.channels?.includes(process.env.SQUARE_CHANNEL_ID || "") ?? false)
+    );
 }
 
 /**
- * Square category IDs that are allowed as top-level categories.
- * Only Miniatures is currently allowlisted.
- * All other top-level Square categories are filtered out.
+ * Square category IDs allowed as top-level categories in production.
+ * Only the Games Workshop top-level category is currently allowed.
  */
-const ALLOWED_CATEGORY_IDS: string[] = [
-  "ZCZJWQX6WREDLATZFW3U7OCJ", // Miniatures
+const PRODUCTION_ALLOWED_CATEGORY_IDS: string[] = [
+  "YG55V2TDWX5B4FM552DSPELU",
 ];
 
 // ---------------------------------------------------------------------------
@@ -785,7 +755,7 @@ function selectPrimaryCategoryId(
     // a fully-visible hierarchy (e.g. its real root is excluded).
     const root = chain[0];
     if (root.categoryData.parentCategory?.id) return undefined;
-    if (!ALLOWED_CATEGORY_IDS.includes(root.id)) return undefined;
+    if (!PRODUCTION_ALLOWED_CATEGORY_IDS.includes(root.id)) return undefined;
     return chain;
   };
 

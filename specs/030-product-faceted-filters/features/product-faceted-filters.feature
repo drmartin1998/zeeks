@@ -54,6 +54,22 @@ Feature: Faceted Product Listing Filters
     Then the parent subcategory's children remain visible (stay expanded) in the facet
     And the product list filters to that child subcategory's products only
 
+  @bug_uncheck_nested_subcategory_keeps_top_level
+  Scenario: Unchecking a nested subcategory keeps the top-level category selected
+    Given a top-level category has a subcategory with its own child subcategories
+    When the shopper selects the nested child subcategory
+    And then unchecks that nested child subcategory
+    Then the filter moves up to the immediate parent subcategory
+    And the top-level category remains checked
+    And the product list shows all products under that parent subcategory
+
+  @us5_facet_loading_lock
+  Scenario: Applying a facet shows a loading state and locks the facets
+    Given a shopper is on a category listing page
+    When they change a facet (select or deselect a filter)
+    Then the product results area shows skeleton loaders while the change is applying
+    And the facets are locked so the shopper cannot change filters again until the results have updated
+
   @US2_filter_by_brand
   Scenario: Apply a single brand filter
     Given products in a category carry a brand

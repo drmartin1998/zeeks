@@ -476,11 +476,39 @@ export interface CartLineItem {
   isUnavailable: boolean;
 }
 
+/** The chosen delivery method: shipped to an address or collected in store. */
+export type FulfillmentMethod = "shipping" | "pickup";
+
+/** The delivery address captured when shipping is selected. */
+export interface ShippingAddress {
+  recipientName: string;
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  state: string;
+  postalCode: string;
+}
+
+/** The fulfillment details attached to an order. */
+export interface OrderFulfillment {
+  method: FulfillmentMethod;
+  /** Present when `method === "shipping"`; null for pickup. */
+  shippingAddress: ShippingAddress | null;
+  /** Calculated shipping fee (cents) for shipping; null for pickup. */
+  shippingCost: { amount: number; currency: string } | null;
+}
+
 /** Full cart state returned from getCart. */
 export interface Cart {
   orderId: string;
   lineItems: CartLineItem[];
   subtotal: { amount: number; currency: string };
+  /** Shipping fee for shipping orders; null for pickup. */
+  shippingCost?: { amount: number; currency: string } | null;
+  /** Order total (subtotal − discounts + shipping). */
+  total?: { amount: number; currency: string };
+  /** The chosen fulfillment method + address. */
+  fulfillment?: OrderFulfillment | null;
 }
 
 /** Input shape for the addToCart Server Action. */
@@ -639,6 +667,14 @@ export const PaymentFormSchema = z.object({
     (v) => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v),
     { message: "Enter a valid email address" }
   ),
+  fulfillmentMethod: z.enum(["shipping", "pickup"]).optional(),
+  shippingName: z.string().optional(),
+  shippingLine1: z.string().optional(),
+  shippingLine2: z.string().optional(),
+  shippingCity: z.string().optional(),
+  shippingState: z.string().optional(),
+  shippingPostalCode: z.string().optional(),
+  shippingCostCents: z.number().nonnegative().optional(),
 });
 
 export type PaymentFormInput = z.infer<typeof PaymentFormSchema>;
