@@ -99,6 +99,7 @@ A shopper uses the faceted product listing on desktop (large), tablet (medium), 
 - What happens when a filter with an active count is deselected? The active-filter count badge should update immediately.
 - What happens when availability data is missing for a product? The product should be treated as available (in stock) or excluded from the availability facet rather than producing an error.
 - What happens when the user navigates directly to a URL carrying filter parameters? The applied filters should be reflected in the displayed product list.
+- What happens while a facet change is applying? The product results area shows skeleton loaders and the facet controls are locked (disabled) for a short window so the shopper cannot change filters too quickly before the results update.
 
 ## Requirements *(mandatory)*
 
@@ -124,6 +125,7 @@ A shopper uses the faceted product listing on desktop (large), tablet (medium), 
 - **FR-016**: When a product is assigned to MULTIPLE Square categories, the product detail breadcrumb MUST NOT default to the first assigned category (`categories[0]`). It MUST select a category that is part of the visible (channel-filtered) hierarchy and resolves up to an allowlisted top-level category, preferring the deepest/most specific valid category. If no assigned category resolves to an allowlisted top-level category, the breadcrumb falls back to "Uncategorized".
 - **FR-017**: The product listing page MUST display each product's real image from the live Square catalog. The listing MUST resolve image URLs from the item's `itemData.imageIds` (falling back to variation-level `itemVariationData.imageIds`) by `batchGet`-ing the IMAGE catalog objects and reading their `imageData.url`, and assign the first available URL to the product. Products with no images MUST keep an empty image so the card renders its gradient placeholder.
 - **FR-018**: The product card image area MUST scale proportionally with the viewport/column width. It MUST use an aspect-ratio-based container (e.g. `aspect-[4/3]`) rather than a fixed pixel height, so the image does not crop or distort as the viewport changes size.
+- **FR-019**: When the shopper changes a facet (selects or deselects a subcategory, brand, or availability filter), the product listing MUST show skeleton loaders in the results area while the change is applying AND lock (disable) all facet controls so the shopper cannot change filters again until the results have updated. The loading window simulates the browser fetch and prevents rapid successive clicks from racing ahead of the results.
 
 ### Key Entities *(include if feature involves data)*
 

@@ -19,6 +19,8 @@ interface SubcategoryFacetProps {
   countBySlug: Record<string, number>;
   onToggle: (slug: string) => void;
   className?: string;
+  /** Disable interaction with the facet options (e.g., while filters are applying). */
+  disabled?: boolean;
 }
 
 /**
@@ -42,6 +44,7 @@ export function SubcategoryFacet({
   countBySlug,
   onToggle,
   className,
+  disabled = false,
 }: SubcategoryFacetProps) {
   if (nodes.length === 0) return null;
 
@@ -60,6 +63,7 @@ export function SubcategoryFacet({
             expandedSlugs={expandedSlugs}
             countBySlug={countBySlug}
             onToggle={onToggle}
+            disabled={disabled}
           />
         ))}
       </div>
@@ -74,6 +78,7 @@ interface SubcategoryNodeProps {
   expandedSlugs?: string[];
   countBySlug: Record<string, number>;
   onToggle: (slug: string) => void;
+  disabled?: boolean;
 }
 
 /**
@@ -96,6 +101,7 @@ function SubcategoryNode({
   expandedSlugs,
   countBySlug,
   onToggle,
+  disabled = false,
 }: SubcategoryNodeProps) {
   const selected = selectedSlugs.includes(node.slug);
   // A node is visually "checked" if it is selected OR any of its descendants
@@ -118,12 +124,14 @@ function SubcategoryNode({
       <label
         style={{ paddingLeft: depth > 0 ? depth * 16 : undefined }}
         className={cn(
-          "flex cursor-pointer select-none items-center gap-2 text-[14px] text-text-primary"
+          "flex select-none items-center gap-2 text-[14px] text-text-primary",
+          disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"
         )}
       >
         <input
           type="checkbox"
           checked={checked}
+          disabled={disabled}
           onChange={() => onToggle(node.slug)}
           className="h-4 w-4 cursor-pointer rounded border-gray-300 accent-zeeks-purple"
         />
@@ -144,6 +152,7 @@ function SubcategoryNode({
             expandedSlugs={expandedSlugs}
             countBySlug={countBySlug}
             onToggle={onToggle}
+            disabled={disabled}
           />
         ))}
     </div>

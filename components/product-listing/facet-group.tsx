@@ -19,6 +19,8 @@ interface FacetGroupProps {
   children?: ReactNode;
   /** Override the header classes (e.g., the Categories header is 18px ExtraBold). */
   headerClassName?: string;
+  /** Disable interaction with the facet options (e.g., while filters are applying). */
+  disabled?: boolean;
 }
 
 export function FacetGroup({
@@ -29,6 +31,7 @@ export function FacetGroup({
   className,
   children,
   headerClassName,
+  disabled = false,
 }: FacetGroupProps) {
   if (options.length === 0 && !children) {
     return null;
@@ -50,11 +53,17 @@ export function FacetGroup({
           : options.map((option) => (
               <label
                 key={option.value}
-                className="flex cursor-pointer select-none items-center gap-2 text-[14px] text-text-primary"
+                className={cn(
+                  "flex select-none items-center gap-2 text-[14px] text-text-primary",
+                  disabled
+                    ? "cursor-not-allowed opacity-50"
+                    : "cursor-pointer"
+                )}
               >
                 <input
                   type="checkbox"
                   checked={selectedValues.includes(option.value)}
+                  disabled={disabled}
                   onChange={() => onToggle(option.value)}
                   className="h-4 w-4 cursor-pointer rounded border-gray-300 accent-zeeks-purple"
                 />

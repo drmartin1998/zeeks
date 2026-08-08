@@ -62,13 +62,7 @@ export async function fetchAllCategories(): Promise<SquareCatalogCategory[]> {
         !!cat.categoryData &&
         // Exclude categories not visible online.
         (cat.categoryData.channels?.includes(process.env.SQUARE_CHANNEL_ID || "") ?? false)
-    )
-    .filter((cat) => {
-      // In production, only allow the configured top-level categories
-      // (subcategories always pass through).
-      if (cat.categoryData.parentCategory?.id) return true;
-      return PRODUCTION_ALLOWED_CATEGORY_IDS.includes(cat.id);
-    });
+    );
 }
 
 /**

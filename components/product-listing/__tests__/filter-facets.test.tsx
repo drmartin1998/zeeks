@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 // Mock next/navigation for useSearchParams + useRouter
@@ -7,7 +7,7 @@ const mockPush = vi.fn();
 let mockSearch = new URLSearchParams();
 vi.mock("next/navigation", () => ({
   useSearchParams: () => mockSearch,
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({ push: mockPush, replace: mockPush, prefetch: mockPush }),
 }));
 
 import { ProductListingPage } from "@/components/product-listing/product-listing-page";
@@ -84,6 +84,7 @@ function renderPage() {
       }}
       products={products}
       subCategories={subCategories}
+      facetLoadingMs={0}
     />
   );
 }
@@ -182,6 +183,7 @@ describe("ProductListingPage nested subcategory facet", () => {
           { id: "GW", name: "Games Workshop", slug: "games-workshop" },
           { id: "PAINT", name: "Paints", slug: "paints" },
         ]}
+        facetLoadingMs={0}
       />
     );
 
@@ -263,6 +265,7 @@ describe("ProductListingPage nested subcategory facet", () => {
           },
         ]}
         subCategoryTree={tree}
+        facetLoadingMs={0}
       />
     );
 
@@ -336,6 +339,7 @@ describe("ProductListingPage nested subcategory facet", () => {
           },
         ]}
         subCategoryTree={tree}
+        facetLoadingMs={0}
       />
     );
 
@@ -406,6 +410,7 @@ describe("ProductListingPage nested subcategory facet", () => {
           },
         ]}
         subCategoryTree={tree}
+        facetLoadingMs={0}
       />
     );
 
@@ -483,6 +488,7 @@ describe("ProductListingPage nested subcategory facet", () => {
           },
         ]}
         subCategoryTree={tree}
+        facetLoadingMs={0}
       />
     );
 
@@ -540,6 +546,7 @@ describe("ProductListingPage nested subcategory facet", () => {
           },
         ]}
         subCategoryTree={tree}
+        facetLoadingMs={0}
       />
     );
 
@@ -607,6 +614,7 @@ describe("ProductListingPage nested subcategory facet", () => {
           },
         ]}
         subCategoryTree={tree}
+        facetLoadingMs={0}
       />
     );
 
@@ -679,6 +687,7 @@ describe("ProductListingPage nested subcategory facet", () => {
           },
         ]}
         subCategoryTree={tree}
+        facetLoadingMs={0}
       />
     );
 
@@ -744,6 +753,7 @@ describe("ProductListingPage nested subcategory facet", () => {
           },
         ]}
         subCategoryTree={[tree[0], { id: "PAINT", name: "Paints", slug: "paints", children: [] }]}
+        facetLoadingMs={0}
       />
     );
 
@@ -862,5 +872,40 @@ describe("ProductListingPage large-screen sidebar layout", () => {
     expect(screen.getAllByText("Categories").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Brand").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Availability").length).toBeGreaterThan(0);
+  });
+});
+
+describe("ProductListingPage facet loading state", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSearch = new URLSearchParams();
+  });
+
+  it("should show skeleton loaders and lock the facets while a facet change is applying", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProductListingPage
+        category={{ slug: "miniatures", name: "Miniatures", description: "" }}
+        products={products}
+        subCategories={subCategories}
+        facetLoadingMs={500}
+      />
+    );
+
+    // Trigger a facet change (select the "Paints" subcategory).
+    const checkbox = screen.getAllByRole("checkbox", { name: /paints/i })[0];
+    await user.click(checkbox);
+
+    // Facets are locked and the skeleton is shown in place of the product grid.
+    expect(screen.getAllByRole("checkbox", { name: /paints/i })[0]).toBeDisabled();
+    expect(document.querySelector(".animate-pulse")).toBeInTheDocument();
+    expect(screen.queryByText("Citadel Paint Red")).not.toBeInTheDocument();
+
+    // After the loading window elapses, the skeleton clears and results return.
+    await waitFor(() => {
+      expect(screen.queryByText("Citadel Paint Red")).toBeInTheDocument();
+    });
+    expect(document.querySelector(".animate-pulse")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("checkbox", { name: /paints/i })[0]).not.toBeDisabled();
   });
 });

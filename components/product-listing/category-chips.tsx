@@ -14,6 +14,8 @@ interface CategoryChipsProps {
   selectedValues: string[];
   onToggle: (slug: string) => void;
   className?: string;
+  /** Disable interaction with the chips (e.g., while filters are applying). */
+  disabled?: boolean;
 }
 
 export function CategoryChips({
@@ -22,6 +24,7 @@ export function CategoryChips({
   selectedValues,
   onToggle,
   className,
+  disabled = false,
 }: CategoryChipsProps) {
   if (options.length === 0) return null;
 
@@ -40,12 +43,14 @@ export function CategoryChips({
               key={option.slug}
               type="button"
               onClick={() => onToggle(option.slug)}
+              disabled={disabled}
               aria-pressed={selected}
               className={cn(
                 "inline-flex items-center gap-1 rounded-md px-3 py-1.5 text-[13px] font-semibold transition-colors",
                 selected
                   ? "bg-zeeks-purple text-white"
-                  : "bg-surface-secondary text-text-primary hover:bg-surface-secondary/70"
+                  : "bg-surface-secondary text-text-primary hover:bg-surface-secondary/70",
+                disabled && "cursor-not-allowed opacity-60"
               )}
             >
               {option.name}

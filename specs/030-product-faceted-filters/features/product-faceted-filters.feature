@@ -63,6 +63,13 @@ Feature: Faceted Product Listing Filters
     And the top-level category remains checked
     And the product list shows all products under that parent subcategory
 
+  @us5_facet_loading_lock
+  Scenario: Applying a facet shows a loading state and locks the facets
+    Given a shopper is on a category listing page
+    When they change a facet (select or deselect a filter)
+    Then the product results area shows skeleton loaders while the change is applying
+    And the facets are locked so the shopper cannot change filters again until the results have updated
+
   @US2_filter_by_brand
   Scenario: Apply a single brand filter
     Given products in a category carry a brand

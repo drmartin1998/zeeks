@@ -6,6 +6,7 @@ import { Footer } from "@/components/footer";
 import { CategoryHero } from "@/components/product-listing/category-hero";
 import { FilterBar } from "@/components/product-listing/filter-bar";
 import { ProductGrid } from "@/components/product-listing/product-grid";
+import { ProductGridSkeleton } from "@/components/product-listing/product-grid-skeleton";
 import { Pagination } from "@/components/product-listing/pagination";
 import type { CategoryDisplayData as CategoryData } from "@/lib/square/types";
 import type { SquareSubCategory, CategoryTreeNode } from "@/lib/square/catalog";
@@ -40,6 +41,12 @@ interface ProductListingPageProps {
   subCategories?: SquareSubCategory[];
   /** Hierarchical subcategory tree for drill-down facet reveal */
   subCategoryTree?: CategoryTreeNode[];
+  /**
+   * How long (ms) to show skeleton loaders and lock the facets after a facet
+   * change, simulating the browser fetch. Set to 0 to disable the loading UX.
+   * @default 500
+   */
+  facetLoadingMs?: number;
 }
 
 const ITEMS_PER_PAGE = 12;
@@ -175,6 +182,7 @@ export function ProductListingPage({
   products: allProducts,
   subCategories,
   subCategoryTree,
+  facetLoadingMs = 500,
 }: ProductListingPageProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -210,6 +218,10 @@ export function ProductListingPage({
   );
   const [currentSort, setCurrentSort] = useState("Featured");
   const [currentPage, setCurrentPage] = useState(1);
+  // True while a facet change is applying: results show skeleton loaders and
+  // the facets are locked so shoppers cannot race ahead of the browser fetch.
+  const [facetLoading, setFacetLoading] = useState(false);
+  const facetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Tracks the last URL we pushed ourselves so the URL→state sync below only
   // reacts to *external* navigation (back/forward, the Shop megamenu), not to
@@ -242,6 +254,7 @@ export function ProductListingPage({
   useEffect(() => {
     return () => {
       if (urlTimer.current) clearTimeout(urlTimer.current);
+      if (facetTimer.current) clearTimeout(facetTimer.current);
     };
   }, []);
 
@@ -408,7 +421,20 @@ export function ProductListingPage({
     [router]
   );
 
+  /**
+   * Trigger the filter-application loading state: show skeleton loaders in the
+   * results area and lock the facets for a short window so the browser has time
+   * to fetch and shoppers cannot click facets too quickly.
+   */
+  const startFacetChange = useCallback(() => {
+    if (facetLoadingMs <= 0) return;
+    setFacetLoading(true);
+    if (facetTimer.current) clearTimeout(facetTimer.current);
+    facetTimer.current = setTimeout(() => setFacetLoading(false), facetLoadingMs);
+  }, [facetLoadingMs]);
+
   const toggleSub = (slug: string) => {
+    startFacetChange();
     const node = findTreeNode(subTree, slug);
     // A node is considered "checked" if it is directly selected OR a descendant
     // is selected (the parent is visually checked when a child is selected).
@@ -447,6 +473,7 @@ export function ProductListingPage({
   };
 
   const toggleBrand = (brand: string) => {
+    startFacetChange();
     const next = activeBrands.includes(brand)
       ? activeBrands.filter((b) => b !== brand)
       : [...activeBrands, brand]; // multi-select
@@ -456,6 +483,7 @@ export function ProductListingPage({
   };
 
   const toggleAvailability = (value: Availability) => {
+    startFacetChange();
     const next = activeAvailability.includes(value)
       ? activeAvailability.filter((a) => a !== value)
       : [...activeAvailability, value]; // multi-select
@@ -465,6 +493,7 @@ export function ProductListingPage({
   };
 
   const clearAll = () => {
+    startFacetChange();
     setActiveSubs([]);
     setActiveBrands([]);
     setActiveAvailability([]);
@@ -536,30 +565,37 @@ export function ProductListingPage({
           onToggleBrand={toggleBrand}
           onToggleAvailability={toggleAvailability}
           onClearAll={clearAll}
+          disabled={facetLoading}
         >
-          <ProductGrid products={paginatedProducts} fill />
-          {sortedProducts.length === 0 && (
-            <div className="flex flex-col items-center justify-center gap-4 px-5 py-20 lg:px-20">
-              <p className="text-lg font-semibold text-text-primary">
-                No products match your filters
-              </p>
-              <p className="text-sm text-text-muted">
-                Try adjusting or clearing your filters.
-              </p>
-              <button
-                type="button"
-                onClick={clearAll}
-                className="rounded-md bg-zeeks-purple px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-zeeks-purple/90"
-              >
-                Clear all filters
-              </button>
-            </div>
+          {facetLoading ? (
+            <ProductGridSkeleton />
+          ) : (
+            <>
+              <ProductGrid products={paginatedProducts} fill />
+              {sortedProducts.length === 0 && (
+                <div className="flex flex-col items-center justify-center gap-4 px-5 py-20 lg:px-20">
+                  <p className="text-lg font-semibold text-text-primary">
+                    No products match your filters
+                  </p>
+                  <p className="text-sm text-text-muted">
+                    Try adjusting or clearing your filters.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={clearAll}
+                    className="rounded-md bg-zeeks-purple px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-zeeks-purple/90"
+                  >
+                    Clear all filters
+                  </button>
+                </div>
+              )}
+              <Pagination
+                currentPage={safePage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+              />
+            </>
           )}
-          <Pagination
-            currentPage={safePage}
-            totalPages={totalPages}
-            onPageChange={handlePageChange}
-          />
         </FilterBar>
       </main>
       <Footer />
