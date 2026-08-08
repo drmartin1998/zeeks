@@ -78,15 +78,6 @@ const PRODUCTION_ALLOWED_CATEGORY_IDS: string[] = [
   "YG55V2TDWX5B4FM552DSPELU",
 ];
 
-/**
- * Square category IDs that are allowed as top-level categories.
- * Only Miniatures is currently allowlisted.
- * All other top-level Square categories are filtered out.
- */
-const ALLOWED_CATEGORY_IDS: string[] = [
-  "ZCZJWQX6WREDLATZFW3U7OCJ", // Miniatures
-];
-
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -769,7 +760,7 @@ function selectPrimaryCategoryId(
     // a fully-visible hierarchy (e.g. its real root is excluded).
     const root = chain[0];
     if (root.categoryData.parentCategory?.id) return undefined;
-    if (!ALLOWED_CATEGORY_IDS.includes(root.id)) return undefined;
+    if (!PRODUCTION_ALLOWED_CATEGORY_IDS.includes(root.id)) return undefined;
     return chain;
   };
 
