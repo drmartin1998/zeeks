@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Footer } from "@/components/footer";
 import { CategoryHero } from "@/components/product-listing/category-hero";
@@ -43,6 +43,20 @@ interface ProductListingPageProps {
 }
 
 const ITEMS_PER_PAGE = 12;
+
+/** Build a URL query string from the active facets. */
+function buildQueryString(params: {
+  subs: string[];
+  brands: string[];
+  availability: Availability[];
+}): string {
+  const sp = new URLSearchParams();
+  if (params.subs.length > 0) sp.set("sub", params.subs[0]);
+  for (const b of params.brands) sp.append("brand", b);
+  for (const a of params.availability) sp.append("availability", a);
+  const qs = sp.toString();
+  return qs ? `?${qs}` : "?";
+}
 
 const AVAILABILITY_OPTIONS: { value: Availability; label: string }[] = [
   { value: "IN_STOCK", label: "In Stock" },
@@ -197,20 +211,39 @@ export function ProductListingPage({
   const [currentSort, setCurrentSort] = useState("Featured");
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Keep filter state in sync with the URL. When the visitor navigates to a
-  // different subcategory via the Shop megamenu (a query-only change on the
-  // same path), Next.js updates `searchParams` without remounting this
-  // component, so the `useState` initializers above would otherwise keep the
-  // stale filter. Adjusting state during render from the previous URL value is
-  // the React-recommended pattern for this (avoids setState-in-effect).
+  // Tracks the last URL we pushed ourselves so the URL→state sync below only
+  // reacts to *external* navigation (back/forward, the Shop megamenu), not to
+  // our own filter toggles. This prevents a feedback loop and keeps rapid facet
+  // clicks from bouncing the UI to a stale state.
+  const lastPushedUrl = useRef<string | null>(null);
+  // Debounce timer so many rapid clicks coalesce into a single URL update.
+  const urlTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Keep filter state in sync with the URL for external changes (back/forward,
+  // the Shop megamenu). Our own toggle handlers update state instantly, so this
+  // re-application is idempotent — it only corrects state when navigation came
+  // from outside this component.
   const urlSub = searchParams.get("sub");
   const [prevUrlSub, setPrevUrlSub] = useState(urlSub);
   if (urlSub !== prevUrlSub) {
     setPrevUrlSub(urlSub);
     const nextSub = urlSub && allSubSlugs.includes(urlSub) ? [urlSub] : [];
     setActiveSubs(nextSub);
+    setActiveBrands(searchParams.getAll("brand"));
+    setActiveAvailability(
+      searchParams
+        .getAll("availability")
+        .filter((a): a is Availability => a === "IN_STOCK" || a === "OUT_OF_STOCK")
+    );
     setCurrentPage(1);
   }
+
+  // Clean up the debounce timer on unmount.
+  useEffect(() => {
+    return () => {
+      if (urlTimer.current) clearTimeout(urlTimer.current);
+    };
+  }, []);
 
   // Products matching the OTHER active facet groups — used to derive the
   // available (non-disabled) options for each facet (dynamic narrowing).
@@ -355,32 +388,24 @@ export function ProductListingPage({
     activeBrands.length +
     activeAvailability.length;
 
-  // Build URL query string from active filters.
-  const buildQuery = useCallback(
-    (params: {
-      subs: string[];
-      brands: string[];
-      availability: Availability[];
-    }) => {
-      const sp = new URLSearchParams();
-      if (params.subs.length > 0) sp.set("sub", params.subs[0]);
-      for (const b of params.brands) sp.append("brand", b);
-      for (const a of params.availability) sp.append("availability", a);
-      const qs = sp.toString();
-      return qs ? `?${qs}` : "?";
-    },
-    []
-  );
-
+  // Debounced URL sync: state updates are instant; the URL is updated once
+  // after a short pause so rapid facet clicks don't trigger a navigation per
+  // click (fixes slow/clunky switching and race conditions). Uses `replace` so
+  // the browser history isn't cluttered with every intermediate filter state.
   const syncUrl = useCallback(
     (
       subs: string[],
       brands: string[],
       availability: Availability[]
     ) => {
-      router.push(buildQuery({ subs, brands, availability }), { scroll: false });
+      const qs = buildQueryString({ subs, brands, availability });
+      lastPushedUrl.current = qs;
+      if (urlTimer.current) clearTimeout(urlTimer.current);
+      urlTimer.current = setTimeout(() => {
+        router.replace(qs, { scroll: false });
+      }, 200);
     },
-    [router, buildQuery]
+    [router]
   );
 
   const toggleSub = (slug: string) => {
@@ -402,20 +427,21 @@ export function ProductListingPage({
     }
 
     // The node IS checked. Determine what to do on deselect:
-    // - If the node is a parent (has children): unselecting it must clear the
-    //   parent AND all its descendants.
-    // - If the node is a leaf/child: unselecting it keeps its parent selected
-    //   (the filter moves up to the parent).
-    if (node && node.children.length > 0) {
-      // Deselect a parent → clear everything under it.
-      setActiveSubs([]);
-      syncUrl([], activeBrands, activeAvailability);
-    } else {
-      // Deselect a child → keep its parent selected.
-      const parentSlug = findParentSlug(subTree, slug);
-      const next = parentSlug ? [parentSlug] : [];
+    // - If the node has a parent in the tree: unselecting it moves the filter
+    //   UP to its immediate parent (the filter narrows to the parent's
+    //   products), keeping the top-level category selected.
+    // - If the node is a top-level node (no parent): unselecting it must clear
+    //   the node AND all its descendants.
+    const parentSlug = findParentSlug(subTree, slug);
+    if (parentSlug) {
+      // Deselect a child/intermediate node → move up to its parent.
+      const next = [parentSlug];
       setActiveSubs(next);
       syncUrl(next, activeBrands, activeAvailability);
+    } else {
+      // Deselect a top-level node → clear everything under it.
+      setActiveSubs([]);
+      syncUrl([], activeBrands, activeAvailability);
     }
     setCurrentPage(1);
   };

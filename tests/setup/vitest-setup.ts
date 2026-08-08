@@ -3,6 +3,11 @@ import "@testing-library/jest-dom/vitest";
 // Channel filter config for tests
 process.env.SQUARE_CHANNEL_ID = "TEST_CHANNEL";
 
+// Run tests in sandbox Square mode so the full catalog is returned (the
+// production-only top-level allowlist is intentionally applied only at runtime
+// in production).
+process.env.SQUARE_ENVIRONMENT = "sandbox";
+
 // Required env vars for lib/env.ts validation (imported transitively via client.ts)
 process.env.SQUARE_ACCESS_TOKEN = "test_square_access_token";
 process.env.SQUARE_LOCATION_ID = "TEST_LOCATION";

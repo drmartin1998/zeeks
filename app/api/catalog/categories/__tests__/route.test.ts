@@ -47,10 +47,15 @@ describe("GET /api/catalog/categories", () => {
 
     expect(response.status).toBe(200);
     expect(Array.isArray(data)).toBe(true);
-    expect(data).toHaveLength(1);
+    // No allowlist filter → both top-level categories are returned.
+    expect(data).toHaveLength(2);
     expect(data[0]).toEqual({
       label: "Miniatures",
       href: "/categories/miniatures",
+    });
+    expect(data[1]).toEqual({
+      label: "Hobby Supplies",
+      href: "/categories/hobby-supplies",
     });
 
     // Verify cache headers
@@ -120,10 +125,12 @@ describe("GET /api/catalog/categories", () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    // Only allowlisted top-level categories (no parentCategory.id) should be returned
-    expect(data).toHaveLength(1);
+    // Top-level categories (no parentCategory.id) are returned;
+    // sub-categories are excluded by the top-level filter.
+    expect(data).toHaveLength(2);
     expect(data.map((c: { label: string }) => c.label)).toEqual([
       "Miniatures",
+      "Hobby Supplies",
     ]);
   });
 
@@ -152,9 +159,12 @@ describe("GET /api/catalog/categories", () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data).toHaveLength(1);
+    // Non-CATEGORY objects are filtered out; both remaining top-level
+    // categories are returned (no allowlist filter).
+    expect(data).toHaveLength(2);
     expect(data.map((c: { label: string }) => c.label)).toEqual([
       "Miniatures",
+      "Hobby Supplies",
     ]);
   });
 });

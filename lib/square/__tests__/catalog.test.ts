@@ -128,12 +128,12 @@ describe("getSquareProductsByCategorySlug pagination", () => {
     });
   });
 
-  it("should return null for non-allowlisted category slug", async () => {
+  it("should find a category by slug regardless of channel/allowlist", async () => {
     const { getSquareCategoryBySlug } = await import(
       "@/lib/square/catalog"
     );
 
-    // Mock fetchAllCategories: non-allowlisted parent
+    // Mock fetchAllCategories: a category with no channel/allowlist entry.
     const mockSearch = vi.fn().mockResolvedValue({
       objects: [
         {
@@ -146,8 +146,9 @@ describe("getSquareProductsByCategorySlug pagination", () => {
 
     vi.mocked((await import("@/lib/square/client")).catalogApi.search).mockImplementation(mockSearch);
 
+    // No channel/allowlist filtering → the category is found.
     const category = await getSquareCategoryBySlug("board-games");
-    expect(category).toBeNull();
+    expect(category).not.toBeNull();
   });
 
   it("should find allowlisted category by slug", async () => {
@@ -188,7 +189,7 @@ describe("getSquareProductsByCategorySlug pagination", () => {
   // Channel filter tests (US1)
   // -------------------------------------------------------------------------
 
-  it("should exclude categories not in the configured channel", async () => {
+  it("should return all top-level categories (no channel filter)", async () => {
     const { getSquareCategories } = await import("@/lib/square/catalog");
 
     const mockSearch = vi.fn().mockResolvedValue({
@@ -219,9 +220,12 @@ describe("getSquareProductsByCategorySlug pagination", () => {
       (await import("@/lib/square/client")).catalogApi.search
     ).mockImplementation(mockSearch);
 
+    // No channel/allowlist filter → both top-level categories are returned
+    // (subcategories are excluded by the top-level filter).
     const categories = await getSquareCategories();
-    expect(categories).toHaveLength(1);
-    expect(categories[0].title).toBe("Miniatures");
+    const titles = categories.map((c) => c.title);
+    expect(titles).toContain("Miniatures");
+    expect(titles).toContain("Other Category");
   });
 
   it("should bypass the channel filter and return categories when SQUARE_CHANNEL_ID is not configured", async () => {
@@ -253,7 +257,7 @@ describe("getSquareProductsByCategorySlug pagination", () => {
     process.env.SQUARE_CHANNEL_ID = originalChannelId;
   });
 
-  it("should exclude categories with empty channels array", async () => {
+  it("should return categories regardless of their channels array", async () => {
     const { getSquareCategories } = await import("@/lib/square/catalog");
 
     const mockSearch = vi.fn().mockResolvedValue({
@@ -275,9 +279,10 @@ describe("getSquareProductsByCategorySlug pagination", () => {
       (await import("@/lib/square/client")).catalogApi.search
     ).mockImplementation(mockSearch);
 
+    // No channel filter → both top-level categories are returned even with
+    // empty/different channel arrays.
     const categories = await getSquareCategories();
-    expect(categories).toHaveLength(1);
-    expect(categories[0].title).toBe("Miniatures");
+    expect(categories).toHaveLength(2);
   });
 });
 
@@ -333,16 +338,17 @@ describe("getSquareProductsByCategorySlug pagination", () => {
     expect(subCategories).toHaveLength(1);
     expect(subCategories[0].name).toBe("Games Workshop");
 
-    // Excluded parent should not match
+    // No channel filter → the "excluded" parent's subcategory is returned too.
     const excludedSubs = await getSquareSubcategories("excluded-parent");
-    expect(excludedSubs).toEqual([]);
+    expect(excludedSubs).toHaveLength(1);
+    expect(excludedSubs[0].name).toBe("Excluded Sub");
   });
 
   // -------------------------------------------------------------------------
   // Centralization tests (US3)
   // -------------------------------------------------------------------------
 
-  it("should return channel-filtered data when called by any consumer without additional filter logic", async () => {
+  it("should return unfiltered data when called by any consumer", async () => {
     const { fetchAllCategories } = await import("@/lib/square/catalog");
 
     const mockSearch = vi.fn().mockResolvedValue({
@@ -370,15 +376,13 @@ describe("getSquareProductsByCategorySlug pagination", () => {
       (await import("@/lib/square/client")).catalogApi.search
     ).mockImplementation(mockSearch);
 
-    // Simulate a "new consumer" — just call fetchAllCategories() directly.
-    // It should return channel-filtered results without any additional filtering.
+    // No channel/allowlist filter → all categories are returned.
     const result = await fetchAllCategories();
 
-    expect(result).toHaveLength(1);
-    expect(result[0].id).toBe(MINIATURES_ID);
+    expect(result).toHaveLength(2);
   });
 
-  it("should automatically exclude subcategories of channel-ineligible parents", async () => {
+  it("should return subcategories regardless of parent channels", async () => {
     const { fetchAllCategories } = await import("@/lib/square/catalog");
 
     const mockSearch = vi.fn().mockResolvedValue({
@@ -397,7 +401,7 @@ describe("getSquareProductsByCategorySlug pagination", () => {
           categoryData: {
             name: "Excluded Sub",
             parentCategory: { id: MINIATURES_ID },
-            channels: [], // empty channels = excluded
+            channels: [], // empty channels — no longer filtered
           },
         },
       ],
@@ -409,9 +413,8 @@ describe("getSquareProductsByCategorySlug pagination", () => {
 
     const result = await fetchAllCategories();
 
-    // Only the parent with channels should be returned
-    expect(result).toHaveLength(1);
-    expect(result[0].id).toBe(MINIATURES_ID);
+    // No channel filter → the subcategory is returned too.
+    expect(result).toHaveLength(2);
   });
 
 // -------------------------------------------------------------------------

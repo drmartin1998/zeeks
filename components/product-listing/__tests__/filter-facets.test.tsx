@@ -625,6 +625,78 @@ describe("ProductListingPage nested subcategory facet", () => {
     expect(screen.getByText("Stormcast Eternals")).toBeInTheDocument();
   });
 
+  it("should keep the top-level category checked when an intermediate subcategory is unselected", async () => {
+    const user = userEvent.setup();
+
+    const tree: CategoryTreeNode[] = [
+      {
+        id: "GW",
+        name: "Games Workshop",
+        slug: "games-workshop",
+        children: [
+          {
+            id: "SM",
+            name: "Space Marines",
+            slug: "space-marines",
+            children: [
+              {
+                id: "HH",
+                name: "Horus Heresy",
+                slug: "horus-heresy",
+                children: [],
+              },
+            ],
+          },
+        ],
+      },
+    ];
+
+    render(
+      <ProductListingPage
+        category={{ slug: "miniatures", name: "Miniatures", description: "" }}
+        products={[
+          {
+            slug: "gw-space-marine",
+            title: "GW Space Marine",
+            category: "Miniatures",
+            subCategory: "Space Marines",
+            subCategorySlug: "space-marines",
+            subCategorySlugs: ["games-workshop", "space-marines"],
+            price: 40,
+            brand: "GW Store",
+            availability: "IN_STOCK",
+          },
+          {
+            slug: "aos",
+            title: "Age of Sigmar",
+            category: "Miniatures",
+            subCategory: "Age of Sigmar",
+            subCategorySlug: "age-of-sigmar",
+            subCategorySlugs: ["games-workshop", "age-of-sigmar"],
+            price: 45,
+            brand: "GW Store",
+            availability: "IN_STOCK",
+          },
+        ]}
+        subCategoryTree={tree}
+      />
+    );
+
+    // Drill down: expand Games Workshop, then Space Marines.
+    await clickCheckbox(user, /games workshop/i);
+    await clickCheckbox(user, /space marines/i);
+
+    // Uncheck the intermediate "Space Marines" (which has children).
+    await clickCheckbox(user, /space marines/i);
+
+    // The top-level "Games Workshop" remains checked (filter moves up).
+    const parentBox = screen.getAllByRole("checkbox", { name: /games workshop/i })[0];
+    expect(parentBox).toBeChecked();
+    // Filtering now shows all products under Games Workshop.
+    expect(screen.getByText("GW Space Marine")).toBeInTheDocument();
+    expect(screen.getByText("Age of Sigmar")).toBeInTheDocument();
+  });
+
   it("should unselect a parent and all its descendants when the parent is unselected", async () => {
     const user = userEvent.setup();
 
