@@ -484,6 +484,16 @@ export async function processPayment(
     billingPostalCode: formData.get("billingPostalCode"),
     squareCustomerId: formData.get("squareCustomerId"),
     billingEmail: formData.get("billingEmail") || undefined,
+    fulfillmentMethod: formData.get("fulfillmentMethod") || undefined,
+    shippingName: formData.get("shippingName") || undefined,
+    shippingLine1: formData.get("shippingLine1") || undefined,
+    shippingLine2: formData.get("shippingLine2") || undefined,
+    shippingCity: formData.get("shippingCity") || undefined,
+    shippingState: formData.get("shippingState") || undefined,
+    shippingPostalCode: formData.get("shippingPostalCode") || undefined,
+    shippingCostCents: formData.get("shippingCostCents")
+      ? Number(formData.get("shippingCostCents"))
+      : 0,
   });
 
   if (!parsed.success) {
@@ -498,7 +508,27 @@ export async function processPayment(
 
   const { userId } = await auth();
 
-  const { sourceId, orderId, rewardTierId, loyaltyAccountId, billingName, billingAddressLine1, billingCity, billingState, billingPostalCode, squareCustomerId, billingEmail } = parsed.data;
+  const {
+    sourceId,
+    orderId,
+    rewardTierId,
+    loyaltyAccountId,
+    billingName,
+    billingAddressLine1,
+    billingCity,
+    billingState,
+    billingPostalCode,
+    squareCustomerId,
+    billingEmail,
+    fulfillmentMethod,
+    shippingName,
+    shippingLine1,
+    shippingLine2,
+    shippingCity,
+    shippingState,
+    shippingPostalCode,
+    shippingCostCents,
+  } = parsed.data;
 
   // Require an email address for guest checkout (no signed-in customer).
   const isGuest = !userId;
@@ -519,6 +549,29 @@ export async function processPayment(
       return { success: false, transactionId: null, orderId: null, error: "This order cannot be processed", errorCode: "INVALID_ORDER" };
     }
 
+    // Build the fulfillment to persist on the order (FR-006). For shipping,
+    // attach a SHIPMENT fulfillment with the recipient + address; for pickup,
+    // no shipping fulfillment is needed.
+    const fulfillment =
+      fulfillmentMethod === "shipping" && shippingLine1
+        ? {
+            type: "SHIPMENT" as const,
+            shipmentDetails: {
+              recipient: {
+                displayName: shippingName ?? "",
+                emailAddress: billingEmail ?? undefined,
+                address: {
+                  addressLine1: shippingLine1,
+                  addressLine2: shippingLine2 || undefined,
+                  locality: shippingCity ?? "",
+                  administrativeDistrictLevel1: shippingState ?? "",
+                  postalCode: shippingPostalCode ?? "",
+                },
+              },
+            },
+          }
+        : undefined;
+
     await ordersApi.update({
       orderId,
       idempotencyKey: crypto.randomUUID(),
@@ -526,6 +579,9 @@ export async function processPayment(
         locationId,
         version: order.version ?? 1,
         state: "OPEN",
+        ...(fulfillment
+          ? { fulfillments: [fulfillment as unknown as Record<string, unknown>] }
+          : {}),
       },
       fieldsToClear: [],
     });

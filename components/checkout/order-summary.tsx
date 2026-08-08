@@ -5,6 +5,8 @@ interface OrderSummaryProps {
   subtotal: { amount: number; currency: string };
   rewardLabel: string | null;
   rewardDiscountAmount: number | null;
+  /** Shipping fee in cents (0 for pickup). */
+  shippingCost?: number;
   total: { amount: number; currency: string };
 }
 
@@ -13,6 +15,7 @@ export function OrderSummary({
   subtotal,
   rewardLabel,
   rewardDiscountAmount,
+  shippingCost = 0,
   total,
 }: OrderSummaryProps) {
   const fmt = (cents: number) => (cents / 100).toFixed(2);
@@ -47,6 +50,15 @@ export function OrderSummary({
             <span className="text-status-promo">{rewardLabel}</span>
             <span className="font-semibold text-status-promo">
               −${fmt(rewardDiscountAmount)}
+            </span>
+          </div>
+        )}
+
+        {shippingCost > 0 && (
+          <div className="flex justify-between text-sm">
+            <span className="text-text-primary">Shipping</span>
+            <span className="font-semibold text-text-primary">
+              ${fmt(shippingCost)}
             </span>
           </div>
         )}
