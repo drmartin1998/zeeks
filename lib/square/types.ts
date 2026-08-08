@@ -753,3 +753,43 @@ export interface PaymentCompletedEventObject {
   };
 }
 
+// ---------------------------------------------------------------------------
+// VIP Program (feature 039)
+// ---------------------------------------------------------------------------
+
+/**
+ * A purchasable VIP membership tier, mapped from a Square catalog object of
+ * type `SUBSCRIPTION_PLAN`.
+ *
+ * Tier data (name, price, billing cadence, benefits) is pulled LIVE from the
+ * Square catalog — never hardcoded or substituted with mock data (Constitution
+ * VII). See `lib/square/subscriptions.ts` for the mapping.
+ */
+export interface VipSubscriptionPlan {
+  /** The Square catalog object ID of the SUBSCRIPTION_PLAN. */
+  id: string;
+  /** The plan name, e.g. "VIP Basic" or "VIP Premium". */
+  name: string;
+  /** Price in cents (smallest currency unit). */
+  priceCents: number;
+  /** Human-readable billing cadence, e.g. "per year". */
+  billingCadence: string;
+  /** Short description of the tier shown on the card. */
+  description: string;
+  /** List of member benefits shown on the tier card. */
+  benefits: string[];
+  /** CTA label for the tier's purchase action. */
+  purchaseActionLabel: string;
+}
+
+/** Zod schema validating a single VIP subscription plan. */
+export const VipSubscriptionPlanSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  priceCents: z.number().int(),
+  billingCadence: z.string(),
+  description: z.string(),
+  benefits: z.array(z.string()),
+  purchaseActionLabel: z.string(),
+});
+

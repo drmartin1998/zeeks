@@ -32,6 +32,7 @@ const mockSquareCategories: NavCategory[] = [
   { label: "Paints & Tools", href: "/categories/paints-tools" },
   { label: "About Us", href: "/about" },
   { label: "Local Events", href: "/events" },
+  { label: "VIP Program", href: "/vip-program" },
 ];
 
 describe("NavBar", () => {
@@ -56,7 +57,7 @@ describe("NavBar", () => {
     ).toHaveAttribute("href", "/categories/miniatures");
   });
 
-  it("should render About Us and Local Events links", () => {
+  it("should render About Us, Local Events, and VIP Program links", () => {
     render(<NavBar categories={mockSquareCategories} />);
 
     expect(
@@ -65,6 +66,9 @@ describe("NavBar", () => {
     expect(
       screen.getByRole("link", { name: "Local Events" })
     ).toHaveAttribute("href", "/events");
+    expect(
+      screen.getByRole("link", { name: "VIP Program" })
+    ).toHaveAttribute("href", "/vip-program");
   });
 
   it("should render non-highlight categories with muted class", () => {

@@ -115,6 +115,8 @@ async function handleOrderConfirmation(
     return;
   }
 
+  console.log('recipient email::  ' + recipientEmail)
+
   const email = buildOrderConfirmationEmail({
     to: recipientEmail,
     orderId,
@@ -148,10 +150,13 @@ async function resolveRecipientEmail(
   // 1) Prefer the payment's buyer email (reliable for guests and signed-in
   //    customers, captured at checkout).
   if (paymentId) {
+    console.log(`payment received - retreieving`)
     try {
       const { paymentsApi } = await import("@/lib/square/client");
       const paymentResp = await paymentsApi.get({ paymentId });
       const buyerEmail = paymentResp.payment?.buyerEmailAddress;
+      console.dir(paymentResp.payment)
+      console.log('payment email ' + buyerEmail)
       if (buyerEmail && buyerEmail.length > 0) return buyerEmail;
     } catch (error) {
       console.error(
@@ -165,6 +170,8 @@ async function resolveRecipientEmail(
   try {
     const { ordersApi } = await import("@/lib/square/client");
     const response = await ordersApi.get({ orderId });
+    console.log('getting order')
+    console.dir(response)
     const raw =
       response.order as unknown as Record<string, unknown> | undefined;
     const fulfillment = (
